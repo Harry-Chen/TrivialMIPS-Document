@@ -1,0 +1,13 @@
+image: registry.secoder.net/programmingcanbeverydangerous/trivialmips-document/texlive:20180824_with_make
+
+stages:
+  - build
+
+documents:
+  stage: build
+  script:
+    - make
+  
+  artifacts:
+    paths:
+      - "*.pdf"
