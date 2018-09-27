@@ -10,4 +10,4 @@ documents:
   
   artifacts:
     paths:
-      - "*.pdf"
+      - "output/*.pdf"

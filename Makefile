@@ -6,11 +6,15 @@ LATEX  := xelatex -shell-escape -synctex=1 -interaction=nonstopmode -file-line-e
 BIBER  := biber
 TITLE  := main
 
-DIR_NAME := $(shell basename "$PWD")
+DIR_NAME := $(shell basename "`pwd`")
 
 SUBDIRS := $(dir $(wildcard */.))
+OUTPUT  := output
 
-all: $(SUBDIRS)
+all: $(OUTPUT) $(SUBDIRS)
+
+$(OUTPUT):
+	mkdir -p $@
 
 $(SUBDIRS):
 	cp Makefile $@/
@@ -20,7 +24,7 @@ $(SUBDIRS):
 pdf: $(TEXS) $(BIB_GEN)
 	$(LATEX) $(TITLE)
 	$(LATEX) $(TITLE)
-	cp $(TITLE).pdf ../$(DIR_NAME).pdf
+	cp $(TITLE).pdf ../output/$(DIR_NAME).pdf
 
 %.bib.gen: %.bib
 	touch $@
@@ -28,6 +32,12 @@ pdf: $(TEXS) $(BIB_GEN)
 	$(BIBER) $(TITLE)
 
 clean:
-	rm -rf *.gen *.pdf *.bbl *.blg *.log *.bcf *.aux *.xml *.out _minted-* *.gz
+	for dir in $(SUBDIRS) ; do \
+		cd $$dir; \
+		rm -rf *.gen *.pdf *.bbl *.blg *.log *.bcf *.aux *.xml *.out _minted-* *.gz Makefile; \
+		cd ..; \
+	done
+	
+	rm -rf output/
 
 .PHONY: all, $(SUBDIRS)

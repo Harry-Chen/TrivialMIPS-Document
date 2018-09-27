@@ -229,6 +229,10 @@ TSWLatexianTemp*
 # End of https://www.gitignore.io/api/latex
 #
 
+# generated output
 *.gen
 *.pdf
+output/
 
+# Makefile copied to subdirs
+*/Makefile
