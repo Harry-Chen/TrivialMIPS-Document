@@ -4,10 +4,12 @@ stages:
   - build
 
 documents:
+  tags:
+    - latex
   stage: build
   script:
     - make
   
   artifacts:
     paths:
-      - "output/*.pdf"
+      - "*.pdf"
