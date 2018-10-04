@@ -76,3 +76,71 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
     \item （选做）CPU架构的优化和调整，移植并能够运行uCore Plus
 
 \end{enumerate}
+
+\section{名词解释}
+
+表\ref{table:abbreviation_definition}中是本项目中可能用到的一些名词缩写及它们的解释，以后本项目相关的文档中将不加解释地使用这些缩写。
+
+\begin{table}[!htbp]
+    \centering
+    \begin{tabular}{|l|l|l|}
+    \hline
+    \multicolumn{1}{|c|}{\textbf{缩写}} & \multicolumn{1}{c|}{\textbf{全称}}                   & \multicolumn{1}{c|}{\textbf{含义}} \\ \hline
+    MIPS                              & Microprocessor without Interlocked Pipeline Stages & 无内部互锁流水级的微处理器                    \\ \hline
+    CPU                               & Central Processing Unit                            & 中央处理器                            \\ \hline
+    FPU                               & Floating Point Unit                                & 浮点处理器                            \\ \hline
+    CP0/1                             & Co-Processor 0/1                                   & 协处理器 0/1                         \\ \hline
+    ALU                               & Arithmetic Logic Unit                              & 算术逻辑单元                           \\ \hline
+    MMU                               & Memory Management Unit                             & 内存管理单元                           \\ \hline
+    TLB                               & Translation Lookaside Buffer                       & 旁路快表缓冲                           \\ \hline
+    PA/VA                             & Physical/Virtual Address                           & 物理/虚拟地址                          \\ \hline
+    ROM                               & Read Only Memory                                   & 只读存储器                            \\ \hline
+    (S)RAM                            & (Static) Random Access Memory                      & （静态)随机访问存储器                      \\ \hline
+    UART                              & Universal Asynchronous Receiver-Transmitter        & 通用异步接收器-发射器                      \\ \hline
+    GPIO                              & General-Purpose Input/Output                       & 通用目的输入/输出                        \\ \hline
+    MMIO                              & Memory Mapped Input/Output                         & 内存映射输入/输出                        \\ \hline
+    SOC                               & System On a Chip                                   & 片上系统                             \\ \hline
+    \end{tabular}
+
+    \caption{名词缩写和解释}
+    \label{table:abbreviation_definition}
+
+\end{table}
+
+\section{开发平台}
+
+\subsection{硬件平台}
+
+本项目使用的硬件开发板为ThinPad-NG，其主要部件为Xilinx的Artix 7系列FPGA，型号为xc7a100tfgg676。此外还有外部器件：
+
+\begin{description}
+    \item[SRAM模块] ISSI IS61WV102416ALL，每片16Mbits，共4片，读写周期 10 ns
+    \item[NOR Flash] Numonyx JS28F640J3D75，每片32Mbits，共2片，读周期 60 ns
+    \item[图形控制器] TI TFP410，输出HDMI，最高支持像素时钟频率 165 MHz
+    \item[以太网控制器] Davicom DM9000A，带PHY与MAC支持，支持 10/100 Mbps 自适应
+    \item[USB控制器] Cypress SL811HS，最高支持USB 1.1 FUll Speed(12 Mbps)
+\end{description}
+
+\subsection{软件平台}
+
+本项目使用 GitLab-CI 进行自动化集成和测试，借助Docker保证运行结果可复现。
+
+\begin{description}
+    \item[开发IDE] Xilinx Vivado 2018.1 Web Edition
+    \item[CI系统] Ubuntu 18.04.1
+    \item[文档编译] Tex Live 20180825
+    \item[编译器套件] cross-mipsel-linux-gnu-binutils 2.29-1, cross-mipsel-linux-gnu-gcc 8.2.0-1 (AUR)
+\end{description}
+
+\section{参考资料}
+
+本项目的设计、开发过程需要参考包括且不限于下面列出的书籍、文献和资料：
+\begin{itemize}
+    \item \textit{计算机组成与设计: 硬件/软件接口.} David A.Patterson
+    \item \textit{See MIPS Run Linux.} Dominic Sweetman
+    \item \textit{自己动手写CPU.} 雷思磊
+    \item \textit{MIPS® Architecture For Programmers I, II, III.} Imagination Technologies LTD.
+    \item \textit{Vivado使用误区与进阶.} Ally Zhou
+    \item \textit{32-bits MIPS CPU 需求文档.} 谢磊，李北辰
+    \item \textit{各外设使用手册.} 相关厂商
+\end{itemize}
