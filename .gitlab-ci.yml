@@ -20,5 +20,4 @@ sonar-scanner:
   script:
     - curl -s "http://10.0.0.11/sonar-scanner.tar.gz" -o "/tmp/sonar-scanner.tar.gz"
     - tar -xf "/tmp/sonar-scanner.tar.gz" -C /tmp
-    - export LC_ALL=en_US.UTF-8
     - /tmp/sonar-scanner/bin/sonar-scanner
