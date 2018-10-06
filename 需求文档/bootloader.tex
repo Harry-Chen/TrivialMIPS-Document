@@ -1,1 +1,25 @@
 \chapter{Bootloader部分}
+
+\section{第一阶段：TrivialBootloader}
+
+作为板上系统的一部分，Bootrom中包含了系统每次上电或重置时都会首先执行的代码，起始物理地址为 \texttt{0x1FC00000}。由于这部分程序是固化在FPGA中的，为了节约有限的板载存储，Bootrom中的代码不能太大（暂定为16KB）。因此，有必要撰写一个较小的Bootloader来进行初步的系统初始化和加载工作，将其命名为TrivialBootloader。
+
+本项目计划用C++与汇编语言实现bootloader。其中汇编部分需要有下列功能：
+
+\begin{itemize}
+    \item 系统的全局初始化，设置\texttt{sp, gp}寄存器，跳转到C++代码入口
+    \item C++代码退出后的清理与提示
+    \item 启用异常处理并设置异常向量
+\end{itemize}
+C++部分是Bootloader的主体，其应当具有的功能为：
+
+\begin{description}
+    \item[内存检测] 通过不同块大小随机读写检测内存硬件与实现是否存在问题
+    \item[ELF启动] 支持从非易失存储（Flash）中读取合法的ELF文件头，正确地将其复制到内存的相应位置并跳转
+    \item[直接启动] 支持直接跳转到内存入口点（\texttt{0x8000000}）启动，便于系统移植时的调试工作
+    \item[串口旁加载] 支持从串口直接向内存中加载数据和指令，并跳转到指定的位置启动
+    \item[内存转储] 支持将指定的内存区域的数据转储到串口输出
+    \item[异常处理] 正确处理各种操作异常、非法情况（如没有选择启动模式、内存检测失败、要复制到内存的数据覆盖了Bootloader本身的代码），在发生异常时通过串口、LED等多种途径给出友好可读的提示
+\end{description}
+
+\section{第二阶段：u-boot}
