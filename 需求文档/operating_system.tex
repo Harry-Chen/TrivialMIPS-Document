@@ -2,10 +2,10 @@
 本组计划在板上系统上运行 uCore 操作系统，基本规划为：对SOC、操作系统进行调试使 uCore-thumips 系统运行正常，针对平台进行 MMU、外设等方面等相关实现和测试；对 uCore Plus 操作系统进行扩展，完善其对 MIPS 32 平台的支持，同时达到在板上正常运行的目标。
 
 \section{uCore-thumips操作系统的移植与运行}
-
+\label{section:ucore-thumips}
 \subsection{系统概述}
 
-uCore-thumips\footnote{\url{https://github.com/z4yx/ucore-thumips}} 是针对简化后的 MIPS 32 实现：MIPS32S 平台的 uCore 移植版本。该项目针对 MIPS32S 平台实现了对应的引导程序、初始化流程、异常处理、内存管理和上下文切换流程。相比标准的 MIPS 32，MIPS32S 缺少部分指令且不支持延迟槽。针对这些不同，uCore-thumips 对 uCore 操作系统的编译选项进行了相应的修改，并提供了额外的库函数实现缺失的指令（如 \texttt{divu}）的功能。
+uCore-thumips\footnote{\url{https://github.com/z4yx/ucore-thumips}} 是针对简化后的 MIPS 32 实现：MIPS32S 平台的 uCore 移植版本。该项目针对 MIPS32S 平台实现了对应的Bootloader、初始化流程、异常处理、内存管理和上下文切换流程。相比标准的 MIPS 32，MIPS32S 缺少部分指令且不支持延迟槽。针对这些不同，uCore-thumips 对 uCore 操作系统的编译选项进行了相应的修改，并提供了额外的库函数实现缺失的指令（如 \texttt{divu}）的功能。
 
 \subsection{编译方法}
 在非 mipsel 平台编译、调试 uCore-thumips 需要使用 mipsel 交叉编译、调试工具链，所需工具主要包括 binutils、gcc和gdb。
@@ -16,25 +16,102 @@ Sourcery CodeBench Lite\footnote{\url{https://sourcery.mentor.com/GNUToolchain/r
 
 交叉编译时，指定 CROSS\_COMPILE 环境变量或修改 Makefile 中 CROSS\_COMPILE 变量为所使用的交叉编译器，即可使用 make 进行编译。
 
-编译后得到镜像 \texttt{ucore-kernel-initrd} 和 \texttt{boot/loader.bin} 分别为系统内核 ELF 和引导程序。
+编译后得到镜像 \texttt{ucore-kernel-initrd} 和 \texttt{boot/loader.bin} 分别为系统内核 ELF 和Bootloader。
 
 进行移植时，需针对片上系统对 Makefile 中相应配置进行修改，包括延迟槽、浮点模块等编译选项、为用户 App 预留存储大小等。
 
 \subsection{启动流程}
-uCore-thumips 的引导、启动流程主要分为引导程序加载系统、初始化C环境、初始化系统三个步骤。
+uCore-thumips 的引导、启动流程主要分为Bootloader加载系统、初始化C环境、初始化系统三个步骤。
 
-uCore-thumips 提供了简易的引导程序 \texttt{boot/bootasm.S}，该程序从 Flash（地址0xBE000000）读取合法的ELF文件头，将其复制到内存的相应位置并跳转。
+uCore-thumips 提供了简易的Bootloader \texttt{boot/bootasm.S}，该程序从 Flash（地址0xBE000000）读取合法的ELF文件头，将其复制到内存的相应位置并跳转。
 
-引导程序加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{kernel\_entry} 过程。在此过程中，系统将重置 CP0 中异常相关寄存器、设置 TLB 相关异常向量；同时，正确设置 \texttt{sp, gp}，清空\texttt{bss}以满足C程序运行要求，之后跳转至 \texttt{kern/init/init.c} 中的 \texttt{kern\_init} 函数。
+Bootloader加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{kernel\_entry} 过程。在此过程中，系统将重置 CP0 中异常相关寄存器、设置 TLB 相关异常向量；同时，正确设置 \texttt{sp, gp}，清空\texttt{bss}以满足C程序运行要求，之后跳转至 \texttt{kern/init/init.c} 中的 \texttt{kern\_init} 函数。
 
 \texttt{kern\_init} 函数将完成中断控制、控制台、异常、内存管理、进程管理等系统功能的初始化。
 
-进行移植时，需将引导程序替换为针对TrivialMIPS片上系统自行实现TrivialBootloader或u-boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
+进行移植时，需将Bootloader替换为针对TrivialMIPS片上系统自行实现TrivialBootloader或u-boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
 
 \subsection{内存管理}
 
 MIPS32 使用软件进行 TLB 缺失处理，当发生 TLB 缺失时会触发 TLB Refill 异常。uCore-thumips 已经实现了 TLB Refill 异常的处理。发生 TLB 缺失时，系统会首先检查页表判断是否为缺页，若为缺页调用 \texttt{do\_pgfault} 进行处理，否则检查权限后填充 TLB 表项。
+
 \subsection{异常处理}
 异常处理程序通过访问 CP0 中的 Cause 寄存器获取异常信息，同时需要正确设置 Status 寄存器中的某些位。用户态和特权态切换时，uCore 内核使用 \texttt{trapframe} 结构存储程序运行状况。uCore-thumips 已实现和 CP0 中寄存器的交互及\texttt{trapframe}的保存。
 
 \section{uCore Plus 操作系统的移植与运行}
+\subsection{系统概述}
+uCore Plus\footnote{\url{https://github.com/oscourse-tsinghua/ucore_plus}} 是 uCore 的全功能版本，且提供 i386、AMD64、ARM、MIPS 等多平台的支持。uCore Plus 被划分为不同模块，各模块可独立编译，通过平台相关的 Makefile 进行组合。为提供多平台支持， uCore Plus 的多数模块都分为架构相关部分和架构无关部分，架构相关部分代码位于各模块\texttt{arch/\$ARCH}目录下。每个模块的架构相关代码都至少包含单独的 Makefile 和链接脚本。
+
+\subsection{移植评估}
+\subsubsection{Bootloader}
+uCore Plus 的 Bootloader 模块中，架构无关代码只包括 elf 头和一些通用结构的定义，各架构需实现对应的 Bootloader。uCore Plus 已有的 MIPS Bootloader 沿用了 uCore-thumips 的 Bootloader 的代码。移植时，可以使用TrivialBootloader或u-boot。
+\subsubsection{内核}
+\begin{itemize}
+\item{驱动程序}
+uCore Plus 中，不同架构不共用驱动程序代码，需要为每种架构都实现整套的驱动程序。必须要实现驱动的设备包括console输出、输入、计时器和外部存储。移植时需实现TrivialMIPS平台对应console、计时器和外部存储的驱动。各类设备驱动所需实现的接口见表 \ref{table:console_driver_interface}, \ref{table:timer_driver_interface}, \ref{table:ide_driver_interface}。
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{接口}                                      & \textbf{说明}                      \\ \hline
+\texttt{void cons\_init(void)}  & 初始化 console                      \\ \hline
+\texttt{void cons\_putc(int c)} & 输出字符 \texttt{c} \\ \hline
+\texttt{int cons\_getc(void)}   & 输入字符                             \\ \hline
+\end{tabular}
+    \caption{console驱动需实现的接口}
+    \label{table:console_driver_interface}
+\end{table}
+
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{接口}                                      & \textbf{说明}                      \\ \hline
+\texttt{void clock\_init(void)}  & 初始化计时器                      \\ \hline
+\texttt{size\_t ticks}   & uCore 启动后经过的时间                             \\ \hline
+\end{tabular}
+    \caption{计时器驱动需实现的接口}
+    \label{table:timer_driver_interface}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{接口}                                      & \textbf{说明}                      \\ \hline
+\texttt{void ide\_init(void)}  & 初始化外部存储                      \\ \hline
+\texttt{bool ide\_device\_valid(unsigned short ideno)}   & 检查外部存储是否存在且可用                             \\ \hline
+\texttt{size\_t ide\_device\_size(unsigned short ideno)}   & 返回外部存储每个扇区的大小                             \\ \hline
+\texttt{int ide\_read\_secs(...)}   & 读取给定扇区数的数据                             \\ \hline
+\texttt{int ide\_write\_secs(...)}   & 写入给定扇区数的数据                             \\ \hline
+\end{tabular}
+    \caption{外部存储驱动需实现的接口}
+    \label{table:ide_driver_interface}
+\end{table}
+
+\item{初始化}
+uCore Plus 已包含 uCore-thumips 中的初始化代码，初始化过程与 uCore-thumips 相同。
+\item{内存管理}
+uCore Plus 中，至少需为每个架构在 \texttt{pmm.c}中实现 MMU 初始化和 TLB 缺失的处理、在 \texttt{vmm.c} 中实现 \texttt{copy\_from\_user, copy\_to\_user} 和 \texttt{copy\_string} 三个用于在内核态和用户态之间拷贝数据的函数。uCore Plus 已包含来自 uCore-thumips 中的页表实现和TLB管理代码。
+\item{同步、系统调用及进程管理} uCore Plus 中已实现 MIPS 平台同步、系统调用及进程管理的平台相关代码，部分来自 uCore-thumips，可参考\ref{section:ucore-thumips}节。移植时不需要太大改动。
+
+\end{itemize}
+\subsubsection{ulib}
+
+ulib 是一个静态链接到所有用户程序的函数库，源码位于 \texttt{ucore/src/libs-user-ucore/}。其中的部分函数平台相关，移植时需要实现。平台相关接口及在 MIPS 平台的实现情况见表 \ref{table:ulib_interface}。
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{接口} & \textbf{说明} & \textbf{状态} \\ \hline
+\texttt{initcode.S} & 程序入口 & 已实现 \\ \hline
+\texttt{clone.S} & 克隆的进程 & 待实现 \\ \hline
+\texttt{atomic.h} & 用于用户态锁的实现 & 已实现 \\ \hline
+\texttt{syscall.c} & 进行系统调用 & 已实现 \\ \hline
+\end{tabular}
+    \caption{ulib需实现的接口}
+    \label{table:ulib_interface}
+\end{table}
