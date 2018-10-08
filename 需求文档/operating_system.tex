@@ -1,1 +1,40 @@
 \chapter{操作系统系统部分}
+本组计划在板上系统上运行 uCore 操作系统，基本规划为：对SOC、操作系统进行调试使 uCore-thumips 系统运行正常，针对平台进行 MMU、外设等方面等相关实现和测试；对 uCore Plus 操作系统进行扩展，完善其对 MIPS 32 平台的支持，同时达到在板上正常运行的目标。
+
+\section{uCore-thumips操作系统的移植与运行}
+
+\subsection{系统概述}
+
+uCore-thumips\footnote{\url{https://github.com/z4yx/ucore-thumips}} 是针对简化后的 MIPS 32 实现：MIPS32S 平台的 uCore 移植版本。该项目针对 MIPS32S 平台实现了对应的引导程序、初始化流程、异常处理、内存管理和上下文切换流程。相比标准的 MIPS 32，MIPS32S 缺少部分指令且不支持延迟槽。针对这些不同，uCore-thumips 对 uCore 操作系统的编译选项进行了相应的修改，并提供了额外的库函数实现缺失的指令（如 \texttt{divu}）的功能。
+
+\subsection{编译方法}
+在非 mipsel 平台编译、调试 uCore-thumips 需要使用 mipsel 交叉编译、调试工具链，所需工具主要包括 binutils、gcc和gdb。
+
+Debian 系统下，\texttt{gcc-mipsel-linux-gnu}和\texttt{binutils-mipsel-linux-gnu}软件包分别提供了预编译的目标平台为 mipsel 的 binutils 和 gcc。其它操作系统的工具链可参考 LinuxMIPS 项目文档\footnote{\url{https://www.linux-mips.org/wiki/Toolchains}}自行编译。
+
+Sourcery CodeBench Lite\footnote{\url{https://sourcery.mentor.com/GNUToolchain/release2189}} 提供了预编译的 mipsel 工具链。 
+
+交叉编译时，指定 CROSS\_COMPILE 环境变量或修改 Makefile 中 CROSS\_COMPILE 变量为所使用的交叉编译器，即可使用 make 进行编译。
+
+编译后得到镜像 \texttt{ucore-kernel-initrd} 和 \texttt{boot/loader.bin} 分别为系统内核 ELF 和引导程序。
+
+进行移植时，需针对片上系统对 Makefile 中相应配置进行修改，包括延迟槽、浮点模块等编译选项、为用户 App 预留存储大小等。
+
+\subsection{启动流程}
+uCore-thumips 的引导、启动流程主要分为引导程序加载系统、初始化C环境、初始化系统三个步骤。
+
+uCore-thumips 提供了简易的引导程序 \texttt{boot/bootasm.S}，该程序从 Flash（地址0xBE000000）读取合法的ELF文件头，将其复制到内存的相应位置并跳转。
+
+引导程序加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{kernel\_entry} 过程。在此过程中，系统将重置 CP0 中异常相关寄存器、设置 TLB 相关异常向量；同时，正确设置 \texttt{sp, gp}，清空\texttt{bss}以满足C程序运行要求，之后跳转至 \texttt{kern/init/init.c} 中的 \texttt{kern\_init} 函数。
+
+\texttt{kern\_init} 函数将完成中断控制、控制台、异常、内存管理、进程管理等系统功能的初始化。
+
+进行移植时，需将引导程序替换为针对TrivialMIPS片上系统自行实现TrivialBootloader或u-boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
+
+\subsection{内存管理}
+
+MIPS32 使用软件进行 TLB 缺失处理，当发生 TLB 缺失时会触发 TLB Refill 异常。uCore-thumips 已经实现了 TLB Refill 异常的处理。发生 TLB 缺失时，系统会首先检查页表判断是否为缺页，若为缺页调用 \texttt{do\_pgfault} 进行处理，否则检查权限后填充 TLB 表项。
+\subsection{异常处理}
+异常处理程序通过访问 CP0 中的 Cause 寄存器获取异常信息，同时需要正确设置 Status 寄存器中的某些位。用户态和特权态切换时，uCore 内核使用 \texttt{trapframe} 结构存储程序运行状况。uCore-thumips 已实现和 CP0 中寄存器的交互及\texttt{trapframe}的保存。
+
+\section{uCore Plus 操作系统的移植与运行}
