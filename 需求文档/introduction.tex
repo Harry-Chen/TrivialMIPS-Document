@@ -44,7 +44,7 @@ CPU 的设计包含指令集、流水线结构（微架构）、内存管理单�
 
 \subsection{Bootloader}
 
-Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 u-boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理。而 u-boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
+Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 U-Boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理。而 U-Boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
 
 \subsection{操作系统移植}
 
@@ -71,7 +71,7 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
     \item CPU实现部分必要的指令，通过testbench，能够从bootrom运行简单的汇编程序
     \item CPU实现其余指令，实现必要的存储和通信外设，能够在内存中运行裸机C程序
     \item CPU实现内存管理相关模块，实现较复杂的外设，能够运行性能、功能测试
-    \item CPU实现浮点等指令，实现TrivialBootloader，移植并能够运行u-boot
+    \item CPU实现浮点等指令，实现TrivialBootloader，移植并能够运行U-Boot
     \item CPU架构的整合和调试，移植并能够运行uCore-thumips，网络、USB模块可用
     \item （选做）CPU架构的优化和调整，移植并能够运行uCore Plus
 
@@ -122,6 +122,7 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
 \end{description}
 
 \subsection{软件平台}
+\label{section:software_platform}
 
 本项目使用 GitLab-CI 进行自动化集成和测试，借助Docker保证运行结果可复现。
 

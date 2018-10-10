@@ -12,9 +12,7 @@ uCore-thumips\footnote{\url{https://github.com/z4yx/ucore-thumips}} 是针对简
 
 Debian 系统下，\texttt{gcc-mipsel-linux-gnu}和\texttt{binutils-mipsel-linux-gnu}软件包分别提供了预编译的目标平台为 mipsel 的 binutils 和 gcc。其它操作系统的工具链可参考 LinuxMIPS 项目文档\footnote{\url{https://www.linux-mips.org/wiki/Toolchains}}自行编译。此外 Sourcery CodeBench Lite\footnote{\url{https://sourcery.mentor.com/GNUToolchain/release2189}} 提供了预编译的 mipsel 工具链。 
 
-交叉编译时，指定 \texttt{CROSS\_COMPILE} 环境变量或修改 Makefile 中 \texttt{CROSS\_COMPILE} 变量为所使用的交叉编译器，即可使用 make 进行编译。
-
-编译后得到镜像 \texttt{ucore-kernel-initrd} 和 \texttt{boot/loader.bin} 分别为系统内核 ELF 和Bootloader。
+交叉编译时，指定 \texttt{CROSS\_COMPILE} 环境变量或修改 Makefile 中 \texttt{CROSS\_COMPILE} 变量为所使用的交叉编译器，即可使用 make 进行编译。编译后得到镜像 \texttt{ucore-kernel-initrd} 和 \texttt{boot/loader.bin} 分别为系统内核 ELF 和Bootloader。
 
 进行移植时，需针对片上系统对 Makefile 中相应配置进行修改，包括延迟槽、浮点模块等编译选项、为用户 App 预留存储大小等。
 
@@ -23,11 +21,9 @@ uCore-thumips 的引导、启动流程主要分为Bootloader加载系统、初�
 
 uCore-thumips 提供了简易的Bootloader \texttt{boot/bootasm.S}，该程序从 Flash（默认为地址0xBE000000）读取合法的ELF文件头，将其复制到内存的相应位置并跳转。
 
-Bootloader加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{kernel\_entry} 过程。在此过程中，系统将重置 CP0 中异常相关寄存器、设置 TLB 相关异常向量；同时，正确设置 \texttt{sp, gp}，清空\texttt{bss}以满足C程序运行要求，之后跳转至 \texttt{kern/init/init.c} 中的 \texttt{kern\_init} 函数。
+Bootloader加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{kernel\_entry} 过程。在此过程中，系统将重置 CP0 中异常相关寄存器、设置 TLB 相关异常向量；同时，正确设置 \texttt{sp, gp}，清空\texttt{bss}以满足C程序运行要求，之后跳转至 \texttt{kern/init/init.c} 中的 \texttt{kern\_init} 函数。\texttt{kern\_init} 函数将完成中断控制、控制台、异常、内存管理、进程管理等系统功能的初始化。
 
-\texttt{kern\_init} 函数将完成中断控制、控制台、异常、内存管理、进程管理等系统功能的初始化。
-
-进行移植时，需将Bootloader替换为针对TrivialMIPS片上系统自行实现的TrivialBootloader或u-boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
+进行移植时，需将Bootloader替换为针对TrivialMIPS片上系统自行实现的TrivialBootloader或U-Boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
 
 \subsection{内存管理}
 
@@ -43,7 +39,7 @@ uCore Plus\footnote{\url{https://github.com/oscourse-tsinghua/ucore_plus}} 是 u
 \subsection{移植评估}
 
 \subsubsection{Bootloader}
-uCore Plus 的 Bootloader 模块中，架构无关代码只包括 ELF 头和一些通用结构的定义，各架构需实现对应的 Bootloader。uCore Plus 已有的 MIPS Bootloader 沿用了 uCore-thumips 的 Bootloader 的代码。移植时，可以使用TrivialBootloader或u-boot，无需改动此部分。
+uCore Plus 的 Bootloader 模块中，架构无关代码只包括 ELF 头和一些通用结构的定义，各架构需实现对应的 Bootloader。uCore Plus 已有的 MIPS Bootloader 沿用了 uCore-thumips 的 Bootloader 的代码。移植时，可以使用TrivialBootloader或U-Boot。
 
 \subsubsection{内核}
 \begin{itemize}
@@ -100,7 +96,7 @@ uCore Plus 中，至少需为每个架构在 \texttt{pmm.c}中实现 MMU 初始�
 \end{itemize}
 \subsubsection{ulib}
 
-ulib 是一个静态链接到所有用户程序的函数库，源码位于 \texttt{src/libs-user-ucore/}。其中的部分函数平台相关，移植时需要实现。平台相关接口及在 MIPS 平台的实现情况见表 \ref{table:ulib_interface}。
+ulib 是一个静态链接到所有用户程序的函数库，源码位于 \texttt{src/libs-user-ucore/}。其中的部分函数平台相关，移植时需要实现。相关接口及在 MIPS 平台的实现情况见表 \ref{table:ulib_interface}。
 
 \begin{table}[!htbp]
 \centering
