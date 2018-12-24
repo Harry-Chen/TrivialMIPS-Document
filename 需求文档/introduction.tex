@@ -2,7 +2,7 @@
 
 \section{项目背景}
 
-本项目是计算机组成原理与软件工程两门课程的联合实验。项目需求方为计算机组成原理课程，需求方代表为刘卫东老师；项目承担方是“编程是一件很危险的事情”（\textit{ProgrammingCanBeVeryDangerous}）小组，组长为计63陈晟祺，成员还包括计64周聿浩和计53姚沛然。
+本项目是计算机组成原理与软件工程两门课程的联合实验。项目需求方为计算机组成原理课程，需求方代表为刘卫东老师；项目承担方是“编程是一件很危险的事情”（\textit{ProgrammingCanBeVeryDangerous}）小组，组长为计63陈晟祺，成员还包括计64周聿浩和计54姚沛然。
 
 本项目的目标是在新的32位ThinPad实验板上设计并实现基于 MIPS 32 的CPU，并使用实验板上的周边硬件，成为一个片上系统（SOC）。其能够支持标准MIPS 32 Rev 1指令集的一个较完整子集和 MIPS 32 Rev 2指令集的部分功能，并能够运行 uCore 操作系统。在此基础上，本组还将尝试移植 uCore Plus 操作系统。
 
@@ -44,7 +44,7 @@ CPU 的设计包含指令集、流水线结构（微架构）、内存管理单�
 
 \subsection{Bootloader}
 
-Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 u-boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理。而 u-boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
+Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 U-Boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理。而 U-Boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
 
 \subsection{操作系统移植}
 
@@ -71,7 +71,7 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
     \item CPU实现部分必要的指令，通过testbench，能够从bootrom运行简单的汇编程序
     \item CPU实现其余指令，实现必要的存储和通信外设，能够在内存中运行裸机C程序
     \item CPU实现内存管理相关模块，实现较复杂的外设，能够运行性能、功能测试
-    \item CPU实现浮点等指令，实现TrivialBootloader，移植并能够运行u-boot
+    \item CPU实现浮点等指令，实现TrivialBootloader，移植并能够运行U-Boot
     \item CPU架构的整合和调试，移植并能够运行uCore-thumips，网络、USB模块可用
     \item （选做）CPU架构的优化和调整，移植并能够运行uCore Plus
 
@@ -122,6 +122,7 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
 \end{description}
 
 \subsection{软件平台}
+\label{section:software_platform}
 
 本项目使用 GitLab-CI 进行自动化集成和测试，借助Docker保证运行结果可复现。
 
