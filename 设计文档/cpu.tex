@@ -1,6 +1,7 @@
 \chapter{CPU部分}
 
 \section{流水线结构}
+\subsection{基本单发射结构}
 流水线可以将一条指令的指令拆分成多个较小的步骤，每个步骤都可以按照更高的频率运行从而能够提高CPU的最终运行频率。通常可以将指令的执行划分成为5级流水线
 \begin{itemize}
 	\item \textbf{取指（IF）}：从内存中读取需要执行的指令。
@@ -9,6 +10,13 @@
 	\item \textbf{访存（MM）}：如果需要访问内存，则在这一阶段进行。
 	\item \textbf{回写（WB）}：将运算结果保存到对应寄存器。
 \end{itemize}
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=\linewidth]{standard-pipeline.png}
+	\caption{标准的流水线结构，图示中没有绘制出译码阶段。}
+	\label{fig:standard-pipeline}
+\end{figure}
 
 流水线结构本身在带来性能的提升的同时还会带来一部分冒险问题，有以下三种
 \begin{itemize}
@@ -25,6 +33,16 @@
 	\item \textbf{数据旁路}：将计算结果直接送到需要的地方。比如将EX阶段的结果直接送到ID阶段。
 	\item \textbf{流水线暂停}：插入空指令，暂停流水线的运行。
 \end{itemize}
+
+\subsection{双发射流水线的设计}
+双发射是指在一个时钟周期内可以执行两条的CPU指令，更一般地，在一个周期同时内执行多条CPU指令的技术叫做超标量技术，其流水线结构如图\ref{fig:superscalar}所示。双发射能够有效地提高CPU的效率，但是它同时也对流水线的设计带来了一定程度的挑战。
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=\linewidth]{superscalar.png}
+	\caption{超标量流水线结构。}
+	\label{fig:superscalar}
+\end{figure}
 
 \begin{landscape}
 \begin{figure}[htbp]
