@@ -19,7 +19,7 @@
 
 在MIPS架构中，如果按照如上五级流水线结构实现，则不会出现控制冒险。因为对于跳转指令，其下一条指令无论跳转与否均会执行，这样IF阶段获取的指令刚好能够继续指令。
 
-对于数据冒险有两个方法进行解决
+对于数据冒险有两个方法进行解决：
 
 \begin{itemize}
 	\item \textbf{数据旁路}：将计算结果直接送到需要的地方。比如将EX阶段的结果直接送到ID阶段。
@@ -44,7 +44,7 @@ CP0是MIPS规范中必要的一个协处理器，它提供了操作系统所必�
 
 在CP0中有多个32位寄存器，各个寄存器均通过MTC0和MFC0读写。另外，诸如TLBWI、TLBWR和TLBP等特权指令还有异常的发生也有可能会影响其值。
 
-表\ref{table:required_cp0_registers}中列出了必须实现的CP0寄存器
+表\ref{table:required_cp0_registers}中列出了必须实现的CP0寄存器。
 
 \begin{table}[!htbp]
     \centering
@@ -65,7 +65,7 @@ CP0是MIPS规范中必要的一个协处理器，它提供了操作系统所必�
     \label{table:required_cp0_registers}
 \end{table}
 
-为了实现TLB MMU的功能，还需要表\ref{table:mmu_cp0_registers}中所列出的寄存器
+为了实现TLB MMU的功能，还需要表\ref{table:mmu_cp0_registers}中所列出的寄存器。
 
 \begin{table}[!htbp]
     \centering
@@ -85,14 +85,14 @@ CP0是MIPS规范中必要的一个协处理器，它提供了操作系统所必�
     \label{table:mmu_cp0_registers}
 \end{table}
 
-同时，为了支持自定义异常向量，还需要额外实现一个EBase寄存器。
+同时，为了支持自定义异常向量，还需要额外实现一个MIPS 32 Rev 2 中的 EBase寄存器。
 
 \section{中断和异常}
 \subsection{中断}
 MIPS的中断一共有8个，从0开始编号。其中0号中断和1号中断是软件中断，由软件设置Cause寄存器中的对应位来触发。其余6个中断为硬件中断，由外部硬件触发。在实现中，由Count/Compare寄存器组合而成的定时中断的中断号为7。
 
 \subsection{异常}
-MIPS的异常是``精确异常''，也就是在异常发生前的指令都会执行完毕，异常发生之后的指令不会继续执行。在异常发生时，CPU会跳转到对应的异常向量处执行异常处理代码并设置CP0中对应的寄存器记录异常的原因和一些额外的信息，同时还会进入Kernel Mode。处理异常代码的异常向量由``基地址+偏移''来决定，偏移是根据异常来确定的，基地址是由CP0的EBase寄存器决定。
+MIPS的异常是“精确异常”，也就是在异常发生前的指令都会执行完毕，异常发生之后的指令不会继续执行。在异常发生时，CPU会跳转到对应的异常向量处执行异常处理代码并设置CP0中对应的寄存器记录异常的原因和一些额外的信息，同时还会进入Kernel Mode。处理异常代码的异常向量由“基地址+偏移”来决定，偏移是根据异常来确定的，基地址是由CP0的EBase寄存器决定。
 
 需要支持的异常在表\ref{table:main-exception}中列出。
 
@@ -118,6 +118,7 @@ MIPS的异常是``精确异常''，也就是在异常发生前的指令都会执
 \end{table}
 \section{内存管理}
 MIPS为操作系统的内存管理提供了较为简单的支持，虚拟地址通过MMU转换为物理地址。MIPS标准对虚拟地址和物理地址的映射如表\ref{tab:virtual-address-space}所示。
+
 \begin{table}[htbp]
 	\centering
 	\begin{tabular}{|c|c|c|c|} \hline

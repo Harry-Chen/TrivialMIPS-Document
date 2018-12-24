@@ -22,4 +22,34 @@ C++部分是Bootloader的主体，其应当具有的功能为：
     \item[异常处理] 正确处理各种操作异常、非法情况（如没有选择启动模式、内存检测失败、要复制到内存的数据覆盖了Bootloader本身的代码），在发生异常时通过串口、LED等多种途径给出友好可读的提示
 \end{description}
 
-\section{第二阶段：u-boot}
+\section{第二阶段：U-Boot}
+
+\subsection{背景}
+U-Boot是一个启动引导程序，常见于嵌入式系统中，用于引导Linux等操作系统。通过运行U-Boot引导程序，可以支持从Flash、U盘、网络等来源加载uCore、Linux系统镜像到内存并进行引导。由于U-Boot本身有较强的命令行功能和交互能力，它也可以作为一个硬件测试与演示的工具。在本系统的设计中，U-Boot将作为二级引导程序，放置在Flash中，被TrivialBootloader所加载。
+
+\subsection{硬件需求}
+
+U-Boot对CPU的功能要求较低，它不使用MIPS的中断和TLB机制，因此硬件可以不需要实现这些机制。对于其它的异常，仅仅在程序运行不正常时才会发生，如果假定程序能正常运行，对异常处理也没有要求。
+
+作为功能丰富的引导程序，其对外设的要求很高，将用到表\ref{table:address_allocation}中列出的除了图形设备之外的所有外设（其中定时器用于运行 Dhrystone 等性能测试时的准确时间评估）。其中，USB与以太网模块的正常工作是至关重要的，否则片上系统将失去从外部加载系统的功能。
+
+\subsection{编译方法}
+
+U-Boot可以直接使用\ref{section:software_platform}节中给出的编译器套件进行编译和调试。具体地，只需要运行下列命令：
+
+\begin{itemize}
+    \item \texttt{make\ CROSS\_COMPILE=mipsel-linux-gnu- trivialmips\_thinpad\_defconfig}
+    \item \texttt{make CROSS\_COMPILE=mipsel-linux-gnu- }
+\end{itemize}
+
+\subsection{移植目标}
+
+U-Boot 与 Linux 内核源码的组织架构类似，也都采用了\texttt{DTS}（设备树源码）来描述设备，因此移植方法也比较类似。主要的移植工作主要分为两部分，一部分是添加CPU相关的SoC支持，一部分是添加板级支持。
+
+由于之前的类似项目已经有了完成度较高的工作\footnote{\url{https://github.com/z4yx/u-boot-naivemips/}}，本项目计划在其基础上进一步适配。主要的工作有：
+
+\begin{itemize}
+    \item 添加串口控制器驱动（包括系统启动早期和后期两个部分）
+    \item 添加定时器驱动，准确反映运行时间
+    \item 修改设备描述以准确反映SoC片上资源，修复驱动错误（包括SL811 USB模块和DM9000A 网卡驱动）
+\end{itemize}
