@@ -1,0 +1,134 @@
+\chapter{CPU部分}
+
+\section{流水线结构}
+流水线可以将一条指令的指令拆分成多个较小的步骤，每个步骤都可以按照更高的频率运行从而能够提高CPU的最终运行频率。通常可以将指令的执行划分成为5级流水线
+\begin{itemize}
+	\item \textbf{取指（IF）}：从内存中读取需要执行的指令。
+	\item \textbf{译码（ID）}：将指令进行译码。同时读取指令所需要寄存器值，解析指令码中的立即数并进行扩展，对跳转指令给出跳转地址。
+	\item \textbf{执行（EX）}：按照译码阶段的指令类型，给出对应结果。
+	\item \textbf{访存（MM）}：如果需要访问内存，则在这一阶段进行。
+	\item \textbf{回写（WB）}：将运算结果保存到对应寄存器。
+\end{itemize}
+
+流水线结构本身在带来性能的提升的同时还会带来一部分冒险问题，有以下三种
+\begin{itemize}
+	\item \textbf{结构冒险}：多条指令对同一资源进行访问。例如访存和取指同时对一个地址进行访问。
+	\item \textbf{数据冒险}：流水线内部一条指令依赖于上一条指令的执行结果。
+	\item \textbf{控制冒险}：在ID阶段才能确定跳转地址，但IF阶段就需要获取指令。
+\end{itemize}
+
+在MIPS架构中，如果按照如上五级流水线结构实现，则不会出现控制冒险。因为对于跳转指令，其下一条指令无论跳转与否均会执行，这样IF阶段获取的指令刚好能够继续指令。
+
+对于数据冒险有两个方法进行解决
+
+\begin{itemize}
+	\item \textbf{数据旁路}：将计算结果直接送到需要的地方。比如将EX阶段的结果直接送到ID阶段。
+	\item \textbf{流水线暂停}：插入空指令，暂停流水线的运行。
+\end{itemize}
+
+\section{指令集}
+下方按照功能划分列举了CPU所支持的MIPS指令，各条指令的具体编码以及功能在MIPS文档中有详细的描述。
+\begin{itemize}
+	\item \textbf{自陷指令} TGE, TEGU, TLT, TLTU, TEQ, TNE, TGEI, TGEIU, TLTI, TLTIU, TEQI, TNEI
+	\item \textbf{分支指令} BLTZ, BGEZ, BLTZAL, BGEZAL, BEQ, BNE, BLEZ, BGTZ, JR, JALR, J, JAL
+	\item \textbf{逻辑指令} AND, OR, XOR, ANDI, ORI, XORI, NOR, SLL, SRL, SRA, SLLV, SRLV, SRAV
+	\item \textbf{算术指令} ADD, ADDU, SUB, SUBU, ADDI, ADDIU, MUL, MULT, MULTU, DIV, DIVU, MADD, MADDU, MSUB, MSUBU, CLO, CLZ
+	\item \textbf{访存指令} SB, SH, SW, SWL, SWR, LB, LH, LWL, LWR, LW, LBU, LHU, LL, SC
+	\item \textbf{特权指令} SYSCALL, BREAK, TLBR, TLBWI, TLBWR, TLBP, ERET, MTC0, MFC0
+	\item \textbf{条件移动指令} SLT, SLTU, SLTI, SLTIU, MOVN, MOVZ
+	\item \textbf{无条件移动指令} LUI, SLT, SLTU, MFHI, MFLO, MTHI, MTLO 
+\end{itemize}
+
+\section{协处理器0}
+CP0是MIPS规范中必要的一个协处理器，它提供了操作系统所必须的功能抽象，例如异常处理、内存管理和资源访问控制等。
+
+在CP0中有多个32位寄存器，各个寄存器均通过MTC0和MFC0读写。另外，诸如TLBWI、TLBWR和TLBP等特权指令还有异常的发生也有可能会影响其值。
+
+表\ref{table:required_cp0_registers}中列出了必须实现的CP0寄存器
+
+\begin{table}[!htbp]
+    \centering
+    \begin{tabular}{|r|l|l|}
+    \hline
+    \textbf{编号} & \textbf{名称} & \textbf{功能}  \\ \hline
+	8 & BadVAddr & 最近发生的与地址相关的异常所对应的地址 \\ \hline
+	9 & Count & 计数器 \\ \hline
+	11 & Compare & 计时中断控制器 \\ \hline
+	12 & Status & 处理器状态及控制 \\ \hline
+	13 & Cause & 上一次异常的原因 \\ \hline
+	14 & EPC & 上一次异常发生的地址 \\ \hline
+	15 & PEId & 处理器版本和标识符 \\ \hline
+	16 & Config & 处理器配置 \\ \hline
+	30 & ErrorEPC & 上一次异常发生的地址 \\ \hline
+    \end{tabular}
+    \caption{必要的CP0寄存器}
+    \label{table:required_cp0_registers}
+\end{table}
+
+为了实现TLB MMU的功能，还需要表\ref{table:mmu_cp0_registers}中所列出的寄存器
+
+\begin{table}[!htbp]
+    \centering
+    \begin{tabular}{|r|l|l|}
+    \hline
+    \textbf{编号} & \textbf{名称} & \textbf{功能}  \\ \hline
+	0 & Index & TLB数组的索引 \\ \hline
+	1 & Random & 随机数 \\ \hline
+	2 & EntryLo0 & TLB项的低位 \\ \hline
+	3 & EntryLo1 & TLB项的低位 \\ \hline
+	4 & Context & 指向内存中页表入口的指针 \\ \hline
+	5 & PageMask & 控制TLB的虚拟页大小 \\ \hline
+	6 & Wired & 控制TLB中固定的页数 \\ \hline
+	10 & EntryHi & TLB项的高位 \\ \hline
+    \end{tabular}
+    \caption{MMU所需要的CP0寄存器}
+    \label{table:mmu_cp0_registers}
+\end{table}
+
+同时，为了支持自定义异常向量，还需要额外实现一个EBase寄存器。
+
+\section{中断和异常}
+\subsection{中断}
+MIPS的中断一共有8个，从0开始编号。其中0号中断和1号中断是软件中断，由软件设置Cause寄存器中的对应位来触发。其余6个中断为硬件中断，由外部硬件触发。在实现中，由Count/Compare寄存器组合而成的定时中断的中断号为7。
+
+\subsection{异常}
+MIPS的异常是``精确异常''，也就是在异常发生前的指令都会执行完毕，异常发生之后的指令不会继续执行。在异常发生时，CPU会跳转到对应的异常向量处执行异常处理代码并设置CP0中对应的寄存器记录异常的原因和一些额外的信息，同时还会进入Kernel Mode。处理异常代码的异常向量由``基地址+偏移''来决定，偏移是根据异常来确定的，基地址是由CP0的EBase寄存器决定。
+
+需要支持的异常在表\ref{table:main-exception}中列出。
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{|c|c|l|} \hline
+		\textbf{异常简称} & \textbf{异常说明} \\ \hline
+		Int & 中断  \\ \hline
+		Mod & TLB修改异常 \\ \hline
+		TLBL & TLB Load异常 \\ \hline
+		TLBS & TLB Store异常 \\ \hline
+		AdEL & 地址Load异常 \\ \hline
+		AdES & 地址Store异常 \\ \hline
+		Sys & 系统调用 \\ \hline
+		Bp & 断点 \\ \hline
+		RI & 保留指令 \\ \hline
+		CpU & 协处理器不可用 \\ \hline
+		Ov & 算术溢出 \\ \hline
+		Tr & 自陷异常 \\ \hline
+	\end{tabular}
+	\caption{主要支持的异常}
+	\label{table:main-exception}
+\end{table}
+\section{内存管理}
+MIPS为操作系统的内存管理提供了较为简单的支持，虚拟地址通过MMU转换为物理地址。MIPS标准对虚拟地址和物理地址的映射如表\ref{tab:virtual-address-space}所示。
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{|c|c|c|c|} \hline
+		\textbf{段} & \textbf{虚拟地址} & \textbf{权限} & \textbf{物理地址} \\ \hline
+		kseg3/ksseg & \texttt{0xC000000-0xFFFFFFFF} & Kernel & 由TLB转换 \\ \hline
+		kseg1 & \texttt{0xA0000000-0xBFFFFFFF} & Kernel & \texttt{0x00000000-0x1FFFFFFF} \\ \hline
+		kseg0 & \texttt{0x80000000-0x9FFFFFFF} & Kernel & \texttt{0x00000000-0x1FFFFFFF} \\ \hline
+		useg &  \texttt{0x00000000-0x7FFFFFFF} & User & 由TLB转换 \\ \hline
+	\end{tabular}
+	\caption{虚拟地址空间}
+	\label{tab:virtual-address-space}
+\end{table}
+
+具体的地址转换由TLB来完成，TLB可以认为是在CPU内部的地址转换表的高速缓存。具体的内容需要由操作系统来进行填充。如果在TLB中没有找到对应虚拟地址则会触发一个TLB miss异常，操作系统对该异常处理，并且将对应转换表填入TLB中的某一项来完成对地址的转换。
