@@ -4,7 +4,7 @@
 
 本项目是计算机组成原理与软件工程两门课程的联合实验。项目需求方为计算机组成原理课程，需求方代表为刘卫东老师；项目承担方是“编程是一件很危险的事情”（\textit{ProgrammingCanBeVeryDangerous}）小组，组长为计63陈晟祺，成员还包括计64周聿浩和计54姚沛然。
 
-本项目的目标是在新的32位ThinPad实验板上设计并实现基于 MIPS 32 的CPU，并使用实验板上的周边硬件，成为一个片上系统（SOC）。其能够支持标准MIPS 32 Rev 1指令集的一个较完整子集和 MIPS 32 Rev 2指令集的部分功能，并能够运行 uCore 操作系统。在此基础上，本组还将尝试移植 uCore Plus 操作系统。
+本项目的成果是在新的32位ThinPad实验板上设计并实现基于 MIPS 32 的CPU，并使用实验板上的周边硬件，成为一个片上系统（SOC）。其能够支持标准MIPS 32 Rev 1指令集的一个较完整子集和 MIPS 32 Rev 2指令集的部分功能，并能够运行 uCore 操作系统。在此之外，我们还完成了与编译原理的联合实验，能够运行 decaf 语言编写的程序。
 
 \section{项目概览}
 
@@ -16,66 +16,53 @@ CPU 的设计包含指令集、流水线结构（微架构）、内存管理单�
 
 \begin{description}
 
-    \item[指令集] 本项目的CPU实现的指令是 MIPS 32 Rev 1 指令集的一个较完整子集，包括了所有的算术逻辑指令、控制流指令和大部分特权指令（不包括与缓存有关的），覆盖了 uCore 操作系统需要的所有47条指令。MIPS 32 Rev 2 中的部分指令（如 CP0 中的 ebase 寄存器）由于被操作系统需要，也包含在设计中。
-    \item[流水线结构] 本项目计划实现经典的MIPS五级流水线结构，即分为取指、译码、执行、访存、回写阶段，每个阶段在CPU内部使用一个时钟周期。为此，需要解决一系列数据和控制流上的冲突、竞争。
-    \item[内存管理单元] 本项目计划实现内存管理单元（MMU）以进行从虚拟地址到物理地址的映射，本项目的内存划分遵循 MIPS 32 标准，将使用转换检测缓冲区（TLB）以加速页表的查询，并对所有外设实现内存映射IO（MMIO）。
-    \item[异常处理机制] 本项目计划完整支持 MIPS 32 Rev 1的异常和中断机制，正确处理同步和异步异常，支持硬件和软件中断，并实现精确异常。
-    \item[协处理器] 本项目将实现 MIPS 32 Rev 1中为CP0处理器规定的几乎所有指令和寄存器，以正确运行操作系统。
-    \item[增强功能] 如果在规定时间内完成了上述需求，本项目还可能实现一系列性能与功能的增强，如CP1浮点协处理器、微架构调整（指令多重发射）等。
+    \item[指令集] 本项目的CPU实现的指令是 MIPS 32 Rev 1 指令集的一个较完整子集，包括了所有的算术逻辑指令、控制流指令和大部分特权指令（不包括与缓存有关的），覆盖了 uCore 操作系统需要的所有47条指令。MIPS 32 Rev 2 中的部分指令（如 CP0 中的 ebase 寄存器）由于被操作系统需要，也包含在实现中。
+    \item[流水线结构] 本项目实现了经典的MIPS五级流水线结构，即分为取指、译码、执行、访存、回写阶段，每个阶段在CPU内部使用一个时钟周期。为此，需要解决一系列数据和控制流上的冲突、竞争。
+    \item[内存管理单元] 本项目实现了内存管理单元（MMU）以进行从虚拟地址到物理地址的映射，本项目的内存划分遵循 MIPS 32 标准，将使用转换检测缓冲区（TLB）以加速页表的查询，并对所有外设实现内存映射IO（MMIO）。
+    \item[异常处理机制] 本项目完整支持 MIPS 32 Rev 1的异常和中断机制，正确处理同步和异步异常，支持硬件和软件中断，并实现精确异常。
+    \item[协处理器] 本项目实现了 MIPS 32 Rev 1中为CP0处理器规定的几乎所有指令和寄存器，以正确运行操作系统。
+    \item[增强功能] 本项目实现了一系列性能与功能上的增强，包括CP1浮点协处理器、指令双发射、静态分支预测等。
 
 \end{description}
 
 \subsection{外设}
 
-外设是板上系统中除CPU以外的部分，本项目需要根据各芯片给出的参考手册实现与各个设备的通信，将设备的功能统一暴露为一系列可读写的物理地址（即MMIO）。除此之外，还需要实现简单的指令和数据总线处理和分发读写请求。计划实现的外设模块有：
+外设是板上系统中除CPU以外的部分，本项目需要根据各芯片给出的参考手册实现与各个设备的通信，将设备的功能统一暴露为一系列可读写的物理地址（即MMIO）。除此之外，还需要实现简单的指令和数据总线处理和分发读写请求。实现的外设模块有：
 
 \begin{description}
 
-    \item[SRAM] 本模块将被用作板上系统的内存，支持读写，大小8MB。
+    \item[SRAM] 本模块被用作板上系统的内存，支持读写，大小8MB。
     \item[Bootrom] 本模块是每次上电和重置后CPU默认的指令加载位置（物理地址 \texttt{0x1FC00000}），只读，将预置Bootloader加载下一级引导程序或操作系统。
-    \item[NOR Flash] 本模块将用作板上系统的非易失性存储，大小8MB，支持读写（非直接对NOR设备的读写，可能被Flash片上控制器翻译为各种控制命令）。
+    \item[NOR Flash] 本模块用作板上系统的非易失性存储，大小8MB，支持读写（非直接对NOR设备的读写，可能被Flash片上控制器翻译为各种控制命令）。
     \item[UART串口] 本模块将串口通信映射为两个地址（控制与数据寄存器），并在数据到来时向CPU发出中断信号。同时收发两侧都有缓冲区以防数据丢失。
-    \item[Framebuffer] 本模块提供了显示功能，提供一块内存区域作为环形的图形缓冲区和一个寄存器用作渲染偏移量指示，并实时地将缓冲区的内容输出为 HDMI 信号。
-    \item[GPIO] 本模块用作控制ThinPad开发板上的GPIO设备，如拨码开关、七段数码管和LED灯，通过读写对应寄存器能够获取或者改变这些设备的状态。
+    \item[Framebuffer] 本模块提供了显示功能，提供一块内存区域作为环形的图形缓冲区和一个寄存器用作渲染偏移量指示，并实时地将缓冲区的内容输出为 HDMI 信号。我们还利用特殊的写入方式实现了硬件解码的功能。
+    \item[GPIO] 本模块用作控制 ThinPad 开发板上的GPIO设备，如拨码开关、七段数码管和LED灯，通过读写对应寄存器能够获取或者改变这些设备的状态。
     \item[Timer] 本模块提供精确的计时功能，累计自上一次重置以来经过的时间（单位为微妙）和CPU周期数。用户也可以在任意时刻改写这些值。
-    \item[其他] 如果完成了以上需求，本项目还计划实现USB模块控制板上的SL8111USB控制器，以及以太网模块控制板上DM9000控制器，为操作系统提供USB与网络通信功能。
+    \item[其他] 本项目还实现了 USB 模块控制板上的SL8111USB控制器，以及以太网模块控制板上DM9000控制器，为操作系统提供USB与网络通信功能。
 
 \end{description}
 
 \subsection{Bootloader}
 
-Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 U-Boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理。而 U-Boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
+Bootloader用于引导操作系统，本项目中运行的 Bootloader分两个阶段，分别是自行编写的 TrivialBootloader 和移植的 U-Boot。前者是被固化在Bootrom中的程序，需要支持从Flash、SRAM、串口等多途径启动，提供任意地址转储功能，负责基本的异常处理，并支持内存和外设的检查。而 U-Boot 是被TrivialBootloader加载的较复杂的引导程序，支持网络启动、USB启动、性能测试等高级功能，需要对源代码进行平台相关移植。
 
 \subsection{操作系统移植}
 
-作为联合项目的要求，本组需要在板上系统上运行操作系统。较基本的是运行已经基本移植好的 uCore-thumips 操作系统，只需要做一些平台相关的改动，以及正确实现CPU的各项功能（尤其是MMU相关模块）、正确与外设进行通信。如果能够完成上面的各项需求，本组还将尝试移植 uCore Plus 操作系统到 MIPS 32 平台，并在板上系统上运行。
+作为联合项目的要求，本组在板上系统上成功运行了 \texttt{uCore-thumips} 操作系统，包括进行一些平台相关的改动，以及正确实现CPU的各项功能（尤其是MMU相关模块）、正确与外设进行通信。为了演示本项目的成果，我们还在操作系统上编写了数个用户态程序，并移植 USB 键盘驱动到内核。同时，我们也为 decaf 编译器后端编写了对应的链接库，以使其编译出的 MIPS 汇编能够正常在我们的平台上运行，并支持输入、输出等功能。
 
 \subsection{自动化测试与部署}
 
-作为软件工程的要求，也是对计原在线平台的测试与协助开发，本项目计划实现基于GitLab CI的自动化综合、测试、部署系统，能够完成以下的功能：
+作为软件工程的要求，也是对计原在线平台的测试与协助开发，本项目实现了基于GitLab CI的自动化综合、测试、部署系统，包括以下的功能：
 
 \begin{itemize}
 
-    \item 自动使用Vivado进行综合、布线，获得bitstream文件，并缓存可复用的中间结果。
-    \item 自动对CPU、外设和整个板上系统运行RTL仿真（基于事先撰写的testbench），防止逻辑错误。
-    \item 将生成的bitstream上传到计原在线平台进行部署，运行性能和功能测试并提取数据进行报告。
+    \item 项目需求、设计等文档的自动编译
+    \item 基于事先撰写的 testbench 自动对CPU、外设和整个板上系统运行RTL仿真
+    \item 自动调用 Vivado 生成 Bitstream 文件，并缓存可复用的中间结果
+    \item 所有相应软件的自动编译，使用 QEMU 对操作系统进行测试
+    \item 使用在线实验平台 SDK，在真实环境中运行性能、功能测试和操作系统，并提取数据进行分析和报告
 
 \end{itemize}
-
-\section{项目规划}
-
-本项目计划的开发进度如下：
-
-\begin{enumerate}
-
-    \item CPU实现部分必要的指令，通过testbench，能够从bootrom运行简单的汇编程序
-    \item CPU实现其余指令，实现必要的存储和通信外设，能够在内存中运行裸机C程序
-    \item CPU实现内存管理相关模块，实现较复杂的外设，能够运行性能、功能测试
-    \item CPU实现浮点等指令，实现TrivialBootloader，移植并能够运行U-Boot
-    \item CPU架构的整合和调试，移植并能够运行uCore-thumips，网络、USB模块可用
-    \item （选做）CPU架构的优化和调整，移植并能够运行uCore Plus
-
-\end{enumerate}
 
 \section{名词解释}
 
@@ -95,7 +82,7 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
     TLB                               & Translation Lookaside Buffer                       & 旁路快表缓冲                           \\ \hline
     PA/VA                             & Physical/Virtual Address                           & 物理/虚拟地址                          \\ \hline
     ROM                               & Read Only Memory                                   & 只读存储器                            \\ \hline
-    (S)RAM                            & (Static) Random Access Memory                      & （静态)随机访问存储器                      \\ \hline
+    (S)RAM                            & (Static) Random Access Memory                      & （静态）随机访问存储器                      \\ \hline
     UART                              & Universal Asynchronous Receiver-Transmitter        & 通用异步接收器-发射器                      \\ \hline
     GPIO                              & General-Purpose Input/Output                       & 通用目的输入/输出                        \\ \hline
     MMIO                              & Memory Mapped Input/Output                         & 内存映射输入/输出                        \\ \hline
@@ -142,6 +129,6 @@ Bootloader用于引导操作系统，本项目设计的Bootloader分两个阶段
     \item \textit{自己动手写CPU.} 雷思磊
     \item \textit{MIPS® Architecture For Programmers I, II, III.} Imagination Technologies LTD.
     \item \textit{Vivado使用误区与进阶.} Ally Zhou
-    \item \textit{32-bits MIPS CPU 需求文档.} 谢磊，李北辰
+    \item \textit{32-bits MIPS CPU 设计文档.} 谢磊，李北辰
     \item \textit{各外设使用手册.} 相关厂商
 \end{itemize}
