@@ -263,3 +263,45 @@ FPU和CPU之间的数据交互主要有如下几种：
 \end{itemize}
 
 	这些指令的具体意义参考MIPS文档。所有算术指令以及CVT.w均按照ROUND模式进行舍入。
+\section{代码结构}
+CPU部分的代码主要在src/cpu目录下，其主要模块见表\ref{tab:cpu-code-structure}。
+
+同时，由于在流水线各个阶段之中传递的信号太多，我们利用SystemVerilog的packed特性，将公共的信号包装成为一个结构以便于能够简化代码的实现。
+
+\begin{table}
+	\centering
+	\begin{tabular}{|c|c|} \hline
+		cpu\_defs.svh & CPU所需常量、结构定义 \\ \hline
+		trivial\_mips.sv & CPU顶层模块 \\ \hline
+		ctrl.sv & 流水线暂停和刷新的控制信号 \\ \hline
+		hilo.sv & HILO寄存器模块 \\ \hline
+		ll\_bit.sv & LLBit寄存器模块 \\ \hline
+		regs.sv & CPU通用寄存器模块 \\ \hline
+		fpu\_regs.sv & FPU寄存器模块 \\ \hline
+		except.sv & 异常请求处理模块 \\ \hline \hline
+		if/cpu\_if.sv & IF阶段处理模块 \\ \hline
+		if/reg\_pc.sv & PC控制模块  \\ \hline
+		if/if\_id.sv & IF/ID数据传输模块 \\ \hline \hline
+		id/cpu\_id.sv & ID阶段处理模块 \\ \hline
+		id/id\_type\_i/j/r.sv & ID阶段I/J/R型指令译码模块 \\ \hline
+		id/fpu\_id.sv & FPU译码模块 \\ \hline
+		id/branch.sv & 分支处理模块 \\ \hline
+		id/superscalar\_ctrl.sv & 双发射控制模块 \\ \hline
+		id/fcsr\_mux.sv & FPU控制寄存器选择模块 \\ \hline
+		id/id\_ex.sv & ID/EX数据传输模块 \\ \hline \hline
+		ex/cpu\_ex.sv & 单周期指令执行模块 \\ \hline
+		ex/ex\_multi\_cycle.sv & 多周期指令执行模块 \\ \hline
+		ex/ex\_count\_bit.sv & CLO/CLZ指令执行模块 \\ \hline
+		ex/div\_uu.v & DIV指令执行模块 \\ \hline
+		ex/fpu\_ex.sv & FPU指令执行模块 \\ \hline
+		ex/fpu\_float2int.sv & 浮点转整数指令执行模块 \\ \hline
+		ex/ex\_mem.sv & ID/EX数据传输模块 \\ \hline \hline
+		mem/cpu\_mem.sv & MEM阶段处理模块 \\ \hline
+		mem/mem\_wb.sv & MEM/WB数据传输模块 \\ \hline \hline
+		wb/cpu\_wb.sv & WB阶段处理模块 \\ \hline \hline
+		cp0/cp0.sv & CP0模块 \\ \hline
+		cp0/lfsr.sv & 随机数发生器 \\ \hline
+	\end{tabular}
+	\caption{CPU部分代码结构。}
+	\label{tab:cpu-code-structure}
+\end{table}
