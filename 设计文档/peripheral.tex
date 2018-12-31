@@ -1,5 +1,49 @@
 \chapter{外设部分}
 
+\section{常用约定}
+
+为了更方便地实现外设与传递信号，我们定义了一些常用的数据类型别名。
+
+\begin{minted}{systemverilog}
+typedef logic           Bit_t;
+typedef logic [3:0]     Nibble_t;
+typedef logic [7:0]     Byte_t;
+typedef logic [15:0]    HalfWord_t;
+typedef logic [31:0]    Word_t;
+typedef logic [63:0]    DoubleWord_t;
+typedef logic [3:0]     ByteMask_t;
+typedef logic [5:0]     Interrupt_t;
+
+typedef struct packed {
+    logic _50M, _11M0592, _10M;
+    logic base, base_2x, base_2x_noshift;
+    logic rst;
+} Clock_t;
+
+`define IRQ_UART     0
+`define IRQ_ETHERNET 1
+`define IRQ_USB      2
+
+`define EVAL(A) `A
+`define REGISTER_IRQ(MODULE, NAME, SOURCE) genvar i; \
+    generate \
+        for (i = 0; i < $bits(Interrupt_t); i++) begin \
+            assign SOURCE[i] = (i == `EVAL(IRQ_``MODULE)) ? NAME : 1'b0; \
+        end \
+    endgenerate
+\end{minted}
+
+其中 \texttt{Interrupt\_t} 用于在外设、总线与CPU间传递中断信号，由于第7个中断被CPU自带的定时中断占据，因此设备可用的仅有6个。使用中断的外设需要使用 \texttt{REGISTER\_IRQ} 这一宏将自己注册到总线的相应位置上。
+
+此外，下列描述中，我们将 CPU 时钟称为“主时钟”，将频率为主时钟的二倍、相位不变的时钟称为“总线时钟”，将总线时钟向前移相 $45\deg$ 后得到的时钟称为外设时钟。各个时钟的相位关系可见图\ref{figure:clock-phase}所示。我们总是假设 CPU 在 \texttt{MAIN\_1} 这一上升沿向总线上发送请求。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{{timing_bus_crop.pdf}}
+    \caption{各个时钟的相位关系}
+    \label{figure:clock-phase}
+\end{figure}
+
 \section{地址分配与总线}
 
 表\ref{table:address_allocation}列举了数据和地址总线上各个设备的物理地址空间分配。为了使解码和请求的分发更方便，每一个设备都有 16MB 的地址空间，但其只会用到其中的一部分。下面各节将给出各个设备的详细行为描述。
@@ -25,15 +69,99 @@
 
 CPU向总线传递的所有地址都必须按4对齐，也就是说最后两个二进制位必需是0，否则将会触发一个“地址错误”异常。如果尝试访问超出任何设备“有效大小”之外的地址，或者向声明为只读的地址写数据，后果将是不可预料的。
 
-本项目计划采用哈佛架构，因此分指令与数据两条总线。其中指令总线主设备为CPU，从设备为Bootrom与SRAM；数据总线主设备为CPU，从设备为除Bootrom外所有外设。两条总线的工作机制都是一致的，即将CPU的读/写指令通过前缀匹配连接到相应设备控制器，并将其回复连接到CPU。由于此类简单总线不至引起冲突，总线地址分配也互不重合，因此不需要仲裁等进阶功能。
+本项目计划采用 Harvard 架构，因此分指令与数据两条总线。其中指令总线主设备为CPU，从设备为Bootrom与SRAM；数据总线主设备为CPU，从设备为除Bootrom外所有外设。两条总线的工作机制都是一致的，即将CPU的读/写指令通过地址前缀匹配连接到相应设备控制器，并同时将设备输出的连接到CPU。由于此类简单总线不至引起冲突，总线地址分配也互不重合，因此不需要仲裁等进阶功能。
+
+我们使用了下列的 \texttt{interface} 用于定义总线与设备间的连接。其中CPU的master侧连接到总线的slave侧，而所有外设的slave侧分别连接到总线的master侧。传递的信号名称都是自解释的，其中 \texttt{data\_rd\_2} 目前仅用于 Bootrom 与 SRAM 控制器同时读取两条指令，供指令双发射所用。
+
+\begin{minted}{systemverilog}
+interface Bus_if (
+    input Clock_t clk
+);
+    Word_t      address;
+    Bit_t       read, write;
+    Bit_t       stall;
+    Word_t      data_rd, data_rd_2, data_wr;
+    ByteMask_t  mask;
+    Interrupt_t interrupt;
+
+    modport master (
+        output address, read, write, data_wr, mask,
+        input  stall, data_rd, data_rd_2, interrupt,
+        input  clk
+    );
+
+    modport slave (
+        output stall, data_rd, data_rd_2, interrupt,
+        input  address, read, write, data_wr, mask,
+        input  clk
+    );
+
+endinterface
+\end{minted}
 
 \section{存储设备}
 
-SRAM、Flash和Bootrom都是存储设备，其中Bootrom是只读的，SRAM是易失的，Flash则是非易失的。出于性能考虑，SRAM和Bootrom都需要能保证在下一个时钟周期上升沿给出当前访存指令的请求结果，而Flash则需要较长的时间进行读写（尤其是写）。为了使CPU得到正确的结果，相关的设备控制模块需要拉高总线的\texttt{stall}信号指示CPU暂停流水线等待访存结束，直到在下一个上升沿能给出响应为止。而由于SRAM被同时挂接在两条总线上，它需要有能力在一个CPU周期内处理两次请求，或者在确实无法完成时正确地给出\texttt{stall}信号。
+SRAM、Flash和Bootrom都是存储设备，其中Bootrom是只读的，SRAM是易失的，Flash则是非易失的。在物理接口上，Flash芯片、SRAM芯片与Bootrom所使用的Xilinx IP核都遵循了所谓的“SRAM接口”，即有片选（CE）、读使能（OE）、写使能（WE）、地址（Address）和数据（Data）信号，其中除数据线为双向（IP核拆分为出入两条），其余均为FPGA需要给出的。三者对读写过程都分别有不同的时序要求，需要根据各自的数据手册正确实现读写时序。此外，Flash芯片还有一些额外的信号，如写保护、重置等，也需要正确处理。
 
-SRAM芯片的每个物理地址都存储一个字（32 bit），所以只需要将地址高30位直接传送给它。而Flash的每个物理地址存储的是半字（16 bit），所以在进行读时，控制器内部需要事实上进行两次连续的读操作后将结果拼接起来；在进行写时，Flash芯片只要求半字写，无需进行特殊处理。Bootrom由一个Xilinx IP核生成，每个地址对应一个字。
+\subsection{Bootrom 控制器}
 
-在物理接口上，Flash芯片、SRAM芯片与Bootrom所使用的Xilinx IP核都遵循了所谓的“SRAM接口”，即有片选（CE）、读使能（OE）、写使能（WE）、地址（Address）和数据（Data）信号，其中除数据线为双向（IP核拆分为出入两条），其余均为FPGA需要给出的。三者对读写过程都分别有不同的时序要求，需要根据各自的数据手册正确实现读写时序。此外，Flash芯片还有一些额外的信号，如写保护、重置等，也需要正确处理。
+Bootrom 的实现使用 XilinX 提供的双端口 ROM IP 核，大小为 16 KB，按照字编址，因此传送的地址需要去掉最后i两位。Bootrom 只需要读取，但请求可能来自于两条总线。其两个端口的时钟均为总线时钟。在每个主时钟的周期中，如果只有指令需要读取，我们在 \texttt{PERI\_1} 获得 CPU 的指令地址处理后传递给 bootrom，它在\texttt{BUS\_1} 获得请求后给出数据，这样就能保证CPU在\texttt{MAIN\_2}获得所请求的指令内容；如果同时有来自指令与数据总线的请求，我们先处理数据请求，而在指令总线上拉高 \texttt{stall} 信号，等到\texttt{MAIN\_2}对应的周期再以同样的方式处理指令请求，而后同时送出数据与指令。
+
+\subsection{SRAM 控制器}
+
+SRAM芯片的每个物理地址也是按字编址的。由于需要实现同时两条指令读取的功能，所以我们将存储内容在两片 SRAM 中交错存放，使得连续的两条指令总是存在于两片 SRAM 中。SRAM 控制器使用下列的接口与硬件进行通信：
+
+\begin{minted}{systemverilog}
+typedef logic [`SRAM_CHIP_ADDRESS_WIDTH-1 : 0] SramChipAddress_t;
+
+interface Sram_if();
+    wire Word_t data;
+    SramChipAddress_t address;
+    logic[3:0] be_n;
+    logic      ce_n, oe_n, we_n;
+
+    modport master(
+        output address, be_n, ce_n, oe_n, we_n,
+        inout  data
+    );
+
+endinterface
+\end{minted}
+
+虽然SRAM 本身不需要时钟，但根据手册的描述，在约束文件中，我们在 SRAM 相关信号上附加了的 10 ns 的输入延迟（建立时间）与 8 ns 的输出延迟（保持时间），以保证芯片的时序要求得到满足。其控制器运行在外设时钟上，工作流程为：
+
+在每个主时钟的周期中，如果只有指令需要读/写，我们在 \texttt{PERI\_1} 获得 CPU 的指令后转换为 SRAM 需要的信号送出，在 \texttt{PERI\_2} 取回数据送给 CPU。如果同时有来自指令与数据总线的请求，我们先处理数据的读/写请求，而在指令总线上拉高 \texttt{stall} 信号，等到\texttt{MAIN\_2}对应的周期再以同样的方式处理指令请求，而后同时送出数据与指令。
+
+事实上，由于CPU在给出地址线的请求时没有经过 pipeline，所需的传播延迟较长，所以我们的确无法在同一时间内完成两条总线的请求。因此这一实现是目前最优的方案。
+
+\subsection{Flash 控制器}
+
+Flash的每个物理地址存储的是半字（16 bit），所以在进行读时，控制器内部需要事实上进行两次连续的读操作后将结果拼接起来；在进行写时，Flash芯片只要求半字写，无需进行特殊处理。其与设备的通信接口定义为：
+
+\begin{minted}{systemverilog}
+typedef logic [`FLASH_CHIP_ADDRESS_WIDTH-1 : 0] FlashChipAddress_t;
+
+interface Flash_if();
+    FlashChipAddress_t address;
+    wire HalfWord_t data;
+    logic rp_n, vpen, ce_n, oe_n, we_n, byte_n;
+
+    modport master(
+        output address, rp_n, vpen, ce_n, oe_n, we_n, byte_n,
+        inout  data
+    );
+
+endinterface
+\end{minted}
+
+Flash在给出读/写标志后，对数据或/和地址保持时间要求为75ns（读）/60ns（写），这意味着一次读写需要多个周期。我们使用一个运行在反相的主时钟上的状态机（即，其每次触发都在主时钟的下降沿）进行读写，如图 \ref{figure:flash-state} 所示。图中的每一个读写状态事实上都是三个状态的组合，其中输入/输出均不发生变化，只是为了满足时序要求。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\linewidth]{{flash.pdf}}
+    \caption{Flash控制器状态机}
+    \label{figure:flash-state}
+\end{figure}
 
 \section{UART串口}
 

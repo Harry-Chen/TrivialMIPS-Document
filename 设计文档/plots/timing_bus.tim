@@ -1,0 +1,204 @@
+Timing Analyzer Settings 
+     Version:           0.991
+     Time_Scale:        1.0E-9
+     Time_Per_Division: 28
+     Number_Divisions:  160
+     Start_Time:        0
+     End_Time:          1600
+Part_Constraint
+     Name:               thold
+     Min_Constraint:     4.0
+     Max_Constraint:     4.0
+     Description:        Example hold constraint
+Part_Constraint_End
+Part_Constraint
+     Name:               tsetup
+     Min_Constraint:     10.0
+     Max_Constraint:     10.0
+     Description:        Example setup constraint
+Part_Constraint_End
+Jitter_Margin
+     Name:               p1jitter
+     Plus_Margin:        1.0
+     Minus_Margin:       1.0
+     Description:        Example part jitter
+Jitter_Margin_End
+Jitter_Margin
+     Name:               p2jitter
+     Plus_Margin:        0.5
+     Minus_Margin:       0.5
+     Description:        Example part jitter
+Jitter_Margin_End
+Digital_Clock
+     Position:          1
+     Name:              MAIN
+     Frequency:         3.0E7
+     Duty_Cycle:        50
+     Start_Delay:       0.0
+     Start_State:       L
+     Rise_Time:         1.0
+     Fall_Time:         1.0
+     IO_Type:           Output
+Digital_Clock_End
+Digital_Clock
+     Position:          2
+     Name:              BUS
+     Frequency:         6.0E7
+     Duty_Cycle:        50
+     Start_Delay:       0.0
+     Start_State:       H
+     Rise_Time:         1.0
+     Fall_Time:         1.0
+     IO_Type:           Output
+Digital_Clock_End
+Digital_Clock
+     Position:          3
+     Name:              PERI
+     Frequency:         6.0E7
+     Duty_Cycle:        50
+     Start_Delay:       6.0
+     Start_State:       L
+     Rise_Time:         1.0
+     Fall_Time:         1.0
+     IO_Type:           Output
+Digital_Clock_End
+StateBar
+     State_Name:        MAIN_1
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       MAIN
+     Edge_At:           1
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        MAIN_2
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       MAIN
+     Edge_At:           3
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        MAIN_3
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       MAIN
+     Edge_At:           5
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        BUS_1
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       BUS
+     Edge_At:           4
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        BUS_2
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       BUS
+     Edge_At:           6
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        BUS_3
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       BUS
+     Edge_At:           8
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        PERI_1
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       PERI
+     Edge_At:           3
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        PERI_2
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       PERI
+     Edge_At:           5
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        PERI_3
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       PERI
+     Edge_At:           7
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
+StateBar
+     State_Name:        PERI_4
+     Line_Type:         Dashed
+     Edge_Position:     35
+     State_Color:       #000000
+     Font_Name:         Dialog
+     Font_Style:        0
+     Font_Size:         12
+     Signal_Type:       DigitalClock
+     Signal_Name:       PERI
+     Edge_At:           9
+     OffsetX:           0
+     OffsetY:           0
+StateBar_End
