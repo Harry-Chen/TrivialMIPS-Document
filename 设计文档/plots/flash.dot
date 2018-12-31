@@ -1,0 +1,17 @@
+digraph DFA {   
+
+	rankdir=LR;
+	node[shape=circle];  
+	
+    INIT;
+    WRITE;
+    READ_0;
+    READ_1;
+    
+    INIT->WRITE[label="data_bus.write"];
+    WRITE->INIT;
+    INIT->READ_0[label="data_bus.read"];
+    READ_0->READ_1[label="address += 1"];
+    READ_1->INIT;
+	
+}
