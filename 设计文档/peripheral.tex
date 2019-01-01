@@ -165,26 +165,140 @@ Flash在给出读/写标志后，对数据或/和地址保持时间要求为75ns
 
 \section{UART串口}
 
-UART是一种无状态协议，实验板上为其预留了TX与RX两条信号线。本项目将使用开源的串口组件作为底层的收发器，串口控制器共向外暴露两个寄存器地址。第一个寄存器（\texttt{0x03000000}）是只读的，最低位指示 CTS (Clear To Send) 信号，表示可以发送数据；次低位是 DR (Data Ready) 信号，表示有未读取的数据。第二个寄存器（\texttt{0x03000004}）是可读写的，当 CTS 信号为高，写操作能向TX信号线上发送一个Byte（高位被忽略）；当DR信号为高，读操作能够获得一个RX信号线上传来的Byte。
+UART是一种无状态的异步通信协议，我们使用了实验板上的直通串口，即TX与RX两条信号线。定义的接口如下：
 
-UART控制器模块使用115200的标准波特率，1个停止位，无校验位。读、写两端都应当有足够大的FIFO缓冲区（如4K）来保证读/写不会因为发送过快或一段时间没有取走而产生非预期结果。只要有数据没有被取走，控制器就应当保持拉高一个外部设备中断。
+\begin{minted}{systemverilog}
+interface UART_if();
+    logic txd, rxd;
+
+    modport master(
+        output txd,
+        input  rxd
+    );
+
+endinterface
+\end{minted}
+
+本项目将使用开源的串口组件作为底层的收发器，串口控制器共向外暴露两个寄存器地址。第一个寄存器（\texttt{0x03000000}）是只读的，最低位指示 CTS (Clear To Send) 信号，表示可以发送数据；次低位是 DR (Data Ready) 信号，表示有未读取的数据。第二个寄存器（\texttt{0x03000004}）是可读写的，当 CTS 信号为高，写操作能向TX信号线上发送一个字节（更高位被忽略）；当DR信号为高，读操作能够获得一个RX信号线上传来的字节。
+
+UART控制器模块使用115200的标准波特率，并支持更改，1个停止位，无校验位。读、写两端都有足够大的FIFO缓冲区（如4K）来保证读/写不会因为发送过快或一段时间没有取走而产生非预期结果。只要有数据没有被取走，控制器就会保持输出中断。
+
+在实现上，串口收到的数据会被立刻写入接收端的FIFO，FIFO使用“First Word Fallthrough”模式以保证读取数据不需要等待，而其非空信号取反并同步后作为输出的中断信号。由于串口的发送较慢，因此在发送端使用一个状态机不断读取FIFO，并送入串口发送模块等待发送完成；如此循环，直到FIFO为空。两个状态寄存器被直接连接到FIFO的相应握手信号上，收发两侧的工作是独立、互不影响的。
 
 \section{显示控制器}
 
-表中控制器的类型是“混合”，是由于它由 240000 字节的图形缓冲区（framebuffer）和一个处于末尾的（0x2075300）配置寄存器组成。在图形缓冲区中，能存储800*600像素的图像，每个像素占据8比特，格式为\texttt{\{RED[2:0], GREEN[2:0], BLUE[1:0]\}}。控制寄存器是可读写的，用来指示图形缓冲区中第一个像素的偏移量，这可以帮助操作系统渲染终端等画面时方便地实现滚动功能。
+显示控制器用于管理视频输出，由 240000 字节的图形缓冲区（framebuffer）和一个处于末尾的（0x2075300）配置寄存器组成。图形缓冲区使用了 XilinX 的双端口 RAM IP核，能存储800*600像素的图像，每个像素占据8比特，格式为\texttt{\{RED[2:0], GREEN[2:0], BLUE[1:0]\}}。控制寄存器是可读写的，用来指示图形缓冲区中第一个像素的偏移量，这可以帮助操作系统渲染终端等画面时方便地实现滚动功能。VGA 接口的定义如下：
 
-本项目将把缓冲区中的内容，以 \texttt{800*600@75Hz} 的画面格式，借助TFP 410芯片产生DVI信号，通过HDMI接口输出。为此，需要借助像素时钟（50MHz），正确地产生符合VGA标准的行、场同步信号，从缓冲区读取并输出相应颜色数据。除此之外，还要正确借助控制寄存器来实现含偏移的渲染。
+\begin{minted}{systemverilog}
+interface VGA_if();
+    logic[2:0] red, green;
+    logic[1:0] blue;
+    logic      hsync, vsync, clk, de;
+
+    modport master(
+        output red, green, blue, hsync, vsync, clk, de
+    );
+
+endinterface
+\end{minted}
+
+本项目把缓冲区中的内容，以 \texttt{800*600@75Hz} 的画面格式，借助TFP 410芯片产生DVI信号，通过HDMI接口输出。为此，需要借助像素时钟（50MHz），正确地产生符合VGA标准的行、场同步信号，从缓冲区读取并输出相应颜色数据，具体的时序可见表\ref{table:vga_timing}。除此之外，还要正确借助控制寄存器，计算下一个时钟沿要渲染的像素在显存中对应的地址，来实现含偏移的渲染。
+
+\begin{table}[htbp]
+    \centering
+    \caption{800*600@72Hz的VGA信号时序规范}
+    \label{table:vga_timing}
+    \begin{tabular}{@{}|c|c|c||c|c|c|@{}}
+      \hline
+      \textbf{Scanline part}                       & \textbf{Pixels} & \textbf{Time ($\mu$s)} & \textbf{Frame part} & \textbf{Lines} & \textbf{Time (ms)} \\ \hline
+      Visible area                                 & 800             & 16                     & Visible area        & 600            & 12.48              \\ 
+      Front porch                                  & 56              & 1.12                   & Front porch         & 37             & 0.7696             \\ 
+      Sync pulse                                   & 120             & 2.4                    & Sync pulse          & 6              & 0.1248             \\ 
+      Back porch                                   & 64              & 1.28                   & Back porch          & 23             & 0.4784             \\ \hline
+      Whole line                                   & 1040            & 20.8                   & Whole frame         & 666            & 13.8528            \\ \hline
+    \end{tabular}
+\end{table}
+
+此外，我们实现了简单的硬件解码功能，用于在黑白模式下向显存快速写入多个连续的像素。此功能的实现为，如果使用双字节（\texttt{uint16\_t}）模式向显存地址进行写入，则数据的最低四个字节会被按位扩展为纯黑/纯白，写入指定地址开始的四个像素中。实验表明，这能够将黑白图像的渲染速度提高5倍以上。
 
 \section{GPIO控制器}
 
-GPIO控制器包含三个寄存器地址，第一个（\texttt{0x06000000}）是只读的拨码开关状态， 第二个（\texttt{0x06000004}）和第三个（\texttt{0x06000008}）是可读写的，分别代表七段数码管和LED的显示。对应实验板上这三种设备的数量，这些寄存器都只有低16位是有意义的。特别地，当\texttt{0x060004}地址的最高为被置于0时，七段数码管的译码功能被启用，只有最低八位是有效且会被显示的；如果被置于1，则译码停用，七段数码管共有16个笔画（包括两个小数点），恰好能够显示一个16位整数。
+GPIO控制器用于管理实验板上的通用接口，接口定义如下：
+
+\begin{minted}{systemverilog}
+interface GPIO_if();
+    logic [31:0] dip_sw;
+    logic [15:0] leds;
+    logic [7:0]  dpy0, dpy1;
+
+    modport master(
+        input  dip_sw,
+        output leds, dpy0, dpy1
+    );
+
+endinterface
+\end{minted}
+
+控制器包含三个寄存器地址，第一个（\texttt{0x06000000}）是只读的拨码开关状态， 第二个（\texttt{0x06000004}）和第三个（\texttt{0x06000008}）是可读写的，分别代表七段数码管和LED的显示。对应实验板上这三种设备的数量，这些寄存器都只有低16位是有意义的。特别地，当\texttt{0x060004}地址的最高位被置于0时，七段数码管的译码功能被启用，只有最低八位是有效的；如果被置于1，则译码停用，七段数码管共有16个笔画（包括两个小数点），恰好能够显示一个16位整数。
 
 \section{定时器}
 
-定时器模块的第一个寄存器（\texttt{0x04000000}）包含了一个每1微妙自动递增的整数，并可以被修改为任意值。它可以被用来不受实际CPU频率影响地计量一些指令执行的时间。第二个寄存器（\texttt{0x04000004}）包含了CPU主时钟的周期计数。这两个寄存器都会在硬重置时被归零。
+定时器模块并不操纵实验板上的物理设备，是一个虚拟外设，用于给CPU上运行的程序提供信息。其第一个寄存器（\texttt{0x04000000}）包含了一个每1微秒自动递增的整数，并可以被写入指令修改为任意值。它可以被用来不受实际CPU频率影响地计量一些指令执行的时间。第二个寄存器（\texttt{0x04000004}）包含了CPU主时钟的周期计数，用于周期精确地测量程序的运行。这两个寄存器都会在硬重置时被归零。
 
 \section{以太网与USB控制器}
 
-作为额外的需求，以太网与USB控制器的硬件逻辑实现并不复杂。它们的硬件同样基于SRAM接口，因此读写可以复用部分Flash与SRAM控制器的代码。但需要注意的是二者对时序也另有各自的要求，以太网控制器一般可以在30ns内完成一个请求，而USB控制器则需要较长的等待。二者暴露的第一个寄存器都是可写的地址选择寄存器（SL811使用了最低8位，而DM9000A甚至只是用了最低位），第二个寄存器是可读写的数据寄存器（SL811最低8位有效，DM9000A最低16位有效）。需要特别注意的书，对于同一个地址的多次，DM9000A可能给出不同的结果，这也反映在对其数据寄存器的读取结果上。
+以太网与USB控制器的硬件逻辑实现并不复杂。它们的硬件同样基于SRAM接口，因此读写逻辑与Flash控制器几乎一致。不同的是二者要求的指令/数据保持时间：以太网控制器一般可以在30ns内完成一个请求，因此无需等待额外的周期；而USB控制器则需要55ns的读保持时间和90ns的写保持时间，因此需要3个周期的等待。它们对应的接口定义为：
 
-这两个部件的操作和通信都较复杂，都需要操作系统中驱动程序的配合才能进行工作。USB控制器与以太网控制器都有硬件的中断信号输入，项目中需要将它们同步后直接连接到CPU的硬件中断端口，以使得操作系统正常处理来自外部硬件的数据和请求。
+\begin{minted}{systemverilog}
+interface Ethernet_if();
+    logic cmd;
+    wire  HalfWord_t sd;
+    logic iow_n, ior_n, cs_n, pwrst_n, intr;
+
+    modport master(
+        output cmd, iow_n, ior_n, cs_n, pwrst_n,
+        input  intr,
+        inout  sd
+    );
+
+endinterface
+
+interface USB_if();
+    logic a0;
+    wire  Byte_t data;
+    logic wr_n, rd_n, cs_n, rst_n, dack_n, intrq, drq_n;
+
+    modport master(
+        output a0, wr_n, rd_n, cs_n, rst_n, dack_n,
+        input  intrq, drq_n,
+        inout  data
+    );
+
+endinterface
+\end{minted}
+
+二者均向外暴露两个控制寄存器。第一个是可写的地址选择寄存器（SL811使用了最低8位，DM9000A只用了最低位），第二个寄存器是可读写的数据寄存器（SL811最低8位有效，DM9000A最低16位有效）。需要特别注意的是，对于同一个地址的多次操作，DM9000A可能给出不同的结果，这也反映在对其数据寄存器的读取结果上。
+
+这两个部件的操作和通信都较复杂，都需要操作系统中驱动程序的配合才能进行工作。USB控制器与以太网控制器都有硬件的中断信号输入，项目中将它们同步后直接连接到CPU的硬件中断端口，以使得操作系统正常处理来自外部硬件的数据和请求。
+
+\section{文件构成}
+
+外设部分代码分为两部分，一是 \texttt{bus} 目录下的指令与数据总线，以及 \texttt{peripheral} 目录下的各外设控制器（详见表 \ref{table:peripheral_source_files}）。
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{|c|c|} \hline
+		bootrom\_controller.svh & Bootrom 控制器 \\ \hline
+		sram\_controller.svh & SRAM 控制器 \\ \hline
+		flash\_controller.svh & Flash 控制器 \\ \hline
+        uart\_controller.svh & 串口控制器 \\ \hline
+        graphics\_controller.svh & 显示控制器 \\ \hline
+		gpio\_controller.svh & GPIO 控制器 \\ \hline
+		timer\_controller.svh & 定时器 \\ \hline
+		ethernet\_controller.svh & 以太网控制器 \\ \hline
+		usb\_controller.svh & USB 控制器 \\ \hline
+		dummy\_controller.svh & 伪控制器\footnote{用于条件编译，详见第\ref{section:test_hardware}节} \\ \hline
+	\end{tabular}
+	\caption{外设控制器源代码文件}
+	\label{table:peripheral_source_files}
+\end{table}
