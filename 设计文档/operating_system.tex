@@ -1,4 +1,4 @@
-\chapter{操作系统部分}
+\chapter{操作系统}
 本组计划在板上系统上运行 uCore 操作系统，基本规划为：对SOC、操作系统进行调试使 uCore-thumips 系统运行正常，针对平台进行 MMU、外设等方面等相关实现和测试；对 uCore Plus 操作系统进行扩展，完善其对 MIPS 32 平台的支持，同时达到在板上正常运行的目标。
 
 \section{uCore-thumips操作系统的移植与运行}
@@ -16,7 +16,9 @@ Debian 系统下，\texttt{gcc-mipsel-linux-gnu}和\texttt{binutils-mipsel-linux
 
 进行移植时，需针对片上系统对 Makefile 中相应配置进行修改，包括延迟槽、浮点模块等编译选项、为用户 App 预留存储大小等。
 
-\subsection{启动流程}
+\subsection{系统分析}
+
+\subsubsection{启动流程}
 uCore-thumips 的引导、启动流程主要分为Bootloader加载系统、初始化C环境、初始化系统三个步骤。
 
 uCore-thumips 提供了简易的Bootloader \texttt{boot/bootasm.S}，该程序从 Flash（默认为地址0xBE000000）读取合法的ELF文件头，将其复制到内存的相应位置并跳转。
@@ -25,14 +27,30 @@ Bootloader加载系统后将跳转至 \texttt{kern/init/entry.S} 中的 \texttt{
 
 进行移植时，需将Bootloader替换为针对TrivialMIPS片上系统自行实现的TrivialBootloader或U-Boot，针对平台对中断控制、控制台等功能的初始化过程进行相应修改。
 
-\subsection{内存管理}
+\subsubsection{内存管理}
 
 MIPS32 使用软件进行 TLB 缺失处理，当发生 TLB 缺失时会触发 TLB Refill 异常。uCore-thumips 已经实现了 TLB Refill 异常的处理。发生 TLB 缺失时，系统会首先检查页表判断是否为缺页，若为缺页调用 \texttt{do\_pgfault} 进行处理，否则检查权限后填充 TLB 表项。
 
-\subsection{异常处理}
+\subsubsection{异常处理}
 异常处理程序通过访问 CP0 中的 Cause 寄存器获取异常信息，同时需要正确设置 Status 寄存器中的某些位。用户态和特权态切换时，uCore 内核使用 \texttt{trapframe} 结构存储程序运行状况。uCore-thumips 已实现和 CP0 中寄存器的交互及\texttt{trapframe}的保存。
 
-\section{uCore Plus 操作系统的移植与运行}
+\subsection{移植内容}
+
+\textcolor{red}{Pero TODO: 添加移植的内容}
+
+另外，在移植过程中，我们发现了uCore存在的一个问题。在进程内存管理组件 \texttt{pmm.c} 的内存拷贝函数 \texttt{copy\_range} 中，如果内存不足导致分配的 \texttt{npage} 为空，原本的实现会直接导致内核崩溃。根据系统 API 语义，此时实际应该返回 \texttt{-E\_NO\_MEM}。按此修复后，系统内核不会在应用程序申请较多内存导致内存不足时崩溃，而是会正确地杀死用户态程序。
+
+\subsection{新增内容}
+
+\textcolor{red}{Pero TODO: 新增内容：ulib的函数，外设通信的系统调用等}
+
+
+\section{Decaf语言的移植}
+
+\textcolor{red}{Pero TODO: 新增移植相关部分}
+
+\section{uCore Plus 操作系统的移植评估}
+
 \subsection{系统概述}
 uCore Plus\footnote{\url{https://github.com/oscourse-tsinghua/ucore_plus}} 是 uCore 的全功能版本，且提供 i386、AMD64、ARM、MIPS 等多平台的支持。uCore Plus 被划分为不同模块，各模块可独立编译，通过平台相关的 Makefile 进行组合。为提供多平台支持， uCore Plus 的多数模块都分为架构相关部分和架构无关部分，架构相关部分代码位于各模块\texttt{arch/\$ARCH}目录下。每个模块的架构相关代码都至少包含单独的 Makefile 和链接脚本。
 
@@ -111,3 +129,7 @@ ulib 是一个静态链接到所有用户程序的函数库，源码位于 \text
     \caption{ulib需实现的接口}
     \label{table:ulib_interface}
 \end{table}
+
+\subsubsection{结论}
+
+由于 uCore Plus 在 QEMU 中无法正常运行，我们推测可能是其内核态实现存在问题。出于时间考虑，我们没有继续对 uCore Plus 的修复和移植工作。

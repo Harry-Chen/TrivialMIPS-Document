@@ -1,17 +1,26 @@
-\chapter{Bootloader部分}
+\chapter{引导程序（Bootloader）}
 
 \section{第一阶段：TrivialBootloader}
 
 作为板上系统的一部分，Bootrom中包含了系统每次上电或重置时都会首先执行的代码，起始物理地址为 \texttt{0x1FC00000}。由于这部分程序是固化在FPGA中的，为了节约有限的板载存储，Bootrom中的代码不能太大（暂定为16KB）。因此，有必要撰写一个较小的Bootloader来进行初步的系统初始化和加载工作，将其命名为TrivialBootloader。
 
-本项目计划用C++与汇编语言实现bootloader。其中汇编部分需要有下列功能：
+\subsection{汇编部分}
+
+作为程序入口，在跳转到高级语言编写的代码之前，需要先使用汇编语言设置一些基本参数，如栈基址（\texttt{sp}）寄存器和异常处理入口等。具体地，汇编部分具有如下功能：
 
 \begin{itemize}
-    \item 系统的全局初始化，设置\texttt{sp, gp}寄存器，跳转到C++代码入口
+    \item 系统的全局初始化，设置\texttt{sp, gp}寄存器，跳转到实际代码入口
     \item C++代码退出后的清理与提示
     \item 启用异常处理并设置异常向量
 \end{itemize}
-C++部分是Bootloader的主体，其应当具有的功能为：
+
+其中实际代码入口为 \texttt{\_main} 符号，\texttt{sp, gp}寄存器被分别设置到\texttt{\_stack, \_gp} 符号。而异常处理会跳转到 \texttt{\_exception\_handler} 符号。这些符号需要在链接时被填充。
+
+\subsection{高级语言部分}
+
+高级语言部分也分为两个C与C++两个子部分。C编写的部分主要用于提供 \texttt{\_main} 函数和 \texttt{\_exception\_handler}函数。前者具有打印欢迎信息、清零 BSS 段、执行 \texttt{main} 函数、打印返回值等功能，后者负责处理异常，从CP0中收集异常原因、异常地址等信息，以友好的方式打印出来。
+
+C++部分是Bootloader的主体，也也是真正的 \texttt{main} 函数实现位置，其具有的功能为：
 
 \begin{description}
     \item[内存检测] 通过不同块大小随机读写检测内存硬件与实现是否存在问题
@@ -21,6 +30,113 @@ C++部分是Bootloader的主体，其应当具有的功能为：
     \item[内存转储] 支持将指定的内存区域的数据转储到串口输出
     \item[异常处理] 正确处理各种操作异常、非法情况（如没有选择启动模式、内存检测失败、要复制到内存的数据覆盖了Bootloader本身的代码），在发生异常时通过串口、LED等多种途径给出友好可读的提示
 \end{description}
+
+作为功能举例，在引导Flash中操作系统的 ELF 文件时，Bootloader输出为（没有启用内存检查）：
+\begin{minted}{text}
+*****TrivialMIPS Bare Metal System*****
+=====Entering TrivialBootloader=====
+Bootloader used memory: from 0x80700000 to 0x80800000
+Mode: Boot
+Device: SPI Flash
+Valid ELF file found, will now copy to RAM.
+Copying 24 bytes from offset 0x19480 to address 0x80019400
+Copying 2159744 bytes from offset 0x80 to address 0x80000000
+Booting from address 0x80000000...
+=====Exiting TrivialBootloader=====
+\end{minted}
+
+\subsection{链接脚本}
+
+由于Bootloader可能被放置在不同位置，此时其本身可用的内存空间（作为栈）以及加载基址是不同的。因此，我们编写了如下的链接脚本。可以看到，我们将内存划分为高低两片，根据代码生成的位置选择不同的区域放置栈代码段和数据段。此外，可用内存范围、BSS段范围、需要检查的内存范围等都是由链接器提供的符号。其可以通过编译时定义不同的常量进行预处理，从而为高级语言提供关于平台的信息，灵活地适应多种要求。
+
+\begin{minted}{c}
+ENTRY(_start);
+
+MEMORY
+{
+    BOOTROM  (rx)  : ORIGIN = 0xBFC00000, LENGTH = 16K
+    RAM_BASE (rwx) : ORIGIN = 0x80000000, LENGTH = 7M
+    RAM_HIGH (rwx) : ORIGIN = 0x80700000, LENGTH = 1M
+}
+
+#ifdef CODE_INTO_BOOTROM
+#define TEXT_AREA BOOTROM
+#define DATA_AREA RAM_HIGH
+#else
+#define TEXT_AREA RAM_BASE
+#define DATA_AREA RAM_BASE
+#endif
+
+SECTIONS
+{
+    . = ORIGIN(TEXT_AREA);
+
+    _mem_start = ORIGIN(DATA_AREA);
+    _mem_end = ORIGIN(DATA_AREA) + LENGTH(DATA_AREA);
+
+#ifdef CODE_INTO_BOOTROM
+    _mem_check_start = ORIGIN(RAM_BASE);
+    _mem_check_end = ORIGIN(RAM_BASE) + LENGTH(RAM_BASE);
+#else
+    _mem_check_start = _stack;
+    _mem_check_end = ORIGIN(RAM_HIGH) + LENGTH(RAM_HIGH);
+#endif
+
+    .text :
+    {
+        _text = .;
+        *(.text.startup)
+        *(.text*)
+        *(.rodata*)
+        *(.reginfo)
+        *(.init)
+        *(.stub)
+        *(.gnu.warning)
+        *(.MIPS.abiflags)
+        _text_end = .;
+    } > TEXT_AREA
+
+    .data :
+    {
+        _data = .;
+        _stack = _data + MEM_SIZE - 32;
+        *(.data)
+        *(.data*)
+        *(.eh_frame)
+        _gp = ALIGN(16) + 0x7ff0;  
+        *(.got.plt) *(.got)
+        *(.sdata) 
+        *(.lit8) 
+        *(.lit4)
+        _data_end = .;
+    } > DATA_AREA
+
+    .sbss : 
+    { 
+        *(.sbss)
+        *(.scommon)
+    } > DATA_AREA
+    
+    .bss :
+    {
+        _bss = .;
+        *(.dynbss)
+        *(.bss)
+        *(COMMON)
+        _bss_end = .;
+    } > DATA_AREA
+
+    /DISCARD/ :
+    {
+        *(.note*);
+        *(.iplt*);
+        *(.igot*);
+        *(.rel*);
+        *(.comment);
+    }
+}
+
+\end{minted}
 
 \section{第二阶段：U-Boot}
 
@@ -35,21 +151,25 @@ U-Boot对CPU的功能要求较低，它不使用MIPS的中断和TLB机制，因�
 
 \subsection{编译方法}
 
-U-Boot可以直接使用\ref{section:software_platform}节中给出的编译器套件进行编译和调试。具体地，只需要运行下列命令：
+U-Boot可以直接使用\ref{section:software_platform}节中给出的编译器套件进行编译和调试。具体地，如果完成移植，并将配置文件保存为 \texttt{trivialmips\_thinpad\_defconfig}，则只需要运行下列命令：
 
 \begin{itemize}
     \item \texttt{make\ CROSS\_COMPILE=mipsel-linux-gnu- trivialmips\_thinpad\_defconfig}
     \item \texttt{make CROSS\_COMPILE=mipsel-linux-gnu- }
 \end{itemize}
 
-\subsection{移植目标}
+就能生成最终的 ELF 可执行文件，将其写入 Flash 开头位置，即可被 TrivialBootloader 所引导。
+
+\subsection{移植内容}
 
 U-Boot 与 Linux 内核源码的组织架构类似，也都采用了\texttt{DTS}（设备树源码）来描述设备，因此移植方法也比较类似。主要的移植工作主要分为两部分，一部分是添加CPU相关的SoC支持，一部分是添加板级支持。
 
-由于之前的类似项目已经有了完成度较高的工作\footnote{\url{https://github.com/z4yx/u-boot-naivemips/}}，本项目计划在其基础上进一步适配。主要的工作有：
+由于之前的类似项目已经有了完成度较高的工作\footnote{\url{https://github.com/z4yx/u-boot-naivemips/}}，本项目在其基础上进一步适配。主要的工作有：
 
 \begin{itemize}
     \item 添加串口控制器驱动（包括系统启动早期和后期两个部分）
     \item 添加定时器驱动，准确反映运行时间
     \item 修改设备描述以准确反映SoC片上资源，修复驱动错误（包括SL811 USB模块和DM9000A 网卡驱动）
 \end{itemize}
+
+\textcolor{red}{Pero TODO: 一些移植的细节（如改动的文件，环境变量，启动菜单等）}
