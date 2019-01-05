@@ -14,3 +14,6 @@ deploy:
   file_glob: true
   file: "*.pdf"
   skip_cleanup: true
+  on:
+    branch: master
+    tags: true
