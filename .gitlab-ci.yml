@@ -2,7 +2,7 @@ stages:
   - documents
 
 latex_compile:
-  image: texlive:20180824_with_make
+  image: aergus/latex
   tags:
     - latex
   stage: documents
@@ -11,13 +11,4 @@ latex_compile:
   artifacts:
     paths:
       - "*.pdf"
-
-sonar-scanner:
-  image: harryleafchen/debian-curl-tar
-  tags:
-    - secoder
-  stage: documents
-  script:
-    - curl -s "http://10.0.0.11/sonar-scanner.tar.gz" -o "/tmp/sonar-scanner.tar.gz"
-    - tar -xf "/tmp/sonar-scanner.tar.gz" -C /tmp
-    - /tmp/sonar-scanner/bin/sonar-scanner
+    when: always
